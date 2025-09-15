@@ -1,0 +1,2 @@
+-- Reserved for additional lookup indexes if needed in the future.
+-- Keeping file to maintain sequential timestamps and organization.
