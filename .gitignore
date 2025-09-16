@@ -88,3 +88,7 @@ coverage.txt
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+
+# Также документация 
+docs/
