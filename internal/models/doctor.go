@@ -7,76 +7,65 @@ import (
 
 // Doctor представляет профиль врача
 type Doctor struct {
-	ID              uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
-	FirstName       string         `gorm:"type:varchar(100);not null" json:"first_name"`
-	LastName        string         `gorm:"type:varchar(100);not null" json:"last_name"`
-	Patronymic      sql.NullString `gorm:"type:varchar(100)" json:"patronymic,omitzero"`
-	SpecialtyID     uint32         `gorm:"not null" json:"specialty_id"`
-	ExperienceYears uint16         `gorm:"not null" json:"experience_years"`
-	Rating          float32        `gorm:"type:numeric(3,2);not null;default:0.00" json:"rating"`
-	ReviewCount     uint32         `gorm:"not null;default:0" json:"review_count"`
-	AvatarURL       sql.NullString `gorm:"type:varchar(512)" json:"avatar_url,omitzero"`
-	CreatedAt       time.Time      `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
-
-	// Связи для полной загрузки профиля
-	Specialty       Specialty              `gorm:"foreignKey:SpecialtyID" json:"specialty"`
-	Clinics         []Clinic               `gorm:"many2many:doctor_clinics" json:"clinics,omitempty"`
-	Services        []Service              `gorm:"foreignKey:DoctorID" json:"services,omitempty"`
-	Education       []DoctorEducation      `gorm:"foreignKey:DoctorID" json:"education,omitempty"`
-	Residency       []DoctorResidency      `gorm:"foreignKey:DoctorID" json:"residency,omitempty"`
-	Courses         []DoctorCourse         `gorm:"foreignKey:DoctorID" json:"courses,omitempty"`
-	Certificates    []DoctorCertificate    `gorm:"foreignKey:DoctorID" json:"certificates,omitempty"`
-	Skills          []DoctorSkill          `gorm:"foreignKey:DoctorID" json:"skills,omitempty"`
-	Specializations []DoctorSpecialization `gorm:"foreignKey:DoctorID" json:"specializations,omitempty"`
-	Reviews         []Review               `gorm:"foreignKey:DoctorID" json:"reviews,omitempty"`
+	ID              uint64         `db:"id" json:"id"`
+	FirstName       string         `db:"first_name" json:"firstName"`
+	LastName        string         `db:"last_name" json:"lastName"`
+	Patronymic      sql.NullString `db:"patronymic" json:"patronymic,omitempty"`
+	SpecialtyID     uint32         `db:"specialty_id" json:"specialtyID"`
+	ExperienceYears uint16         `db:"experience_years" json:"experienceYears"`
+	Rating          float32        `db:"rating" json:"rating"`
+	ReviewCount     uint32         `db:"review_count" json:"reviewCount"`
+	AvatarURL       sql.NullString `db:"avatar_url" json:"avatarURL,omitempty"`
+	CreatedAt       time.Time      `db:"created_at" json:"createdAt"`
+	Specialty       Specialty      `db:"specialty" json:"specialty"`
 }
 
 // DoctorEducation описывает образование врача
 type DoctorEducation struct {
-	ID          uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
-	DoctorID    uint64 `gorm:"not null" json:"doctor_id"`
-	Institution string `gorm:"type:varchar(255);not null" json:"institution"`
-	Specialty   string `gorm:"type:varchar(255);not null" json:"specialty"`
-	StartYear   uint16 `gorm:"not null" json:"start_year"`
-	EndYear     uint16 `gorm:"not null" json:"end_year"`
+	ID          uint64 `db:"id" json:"id"`
+	DoctorID    uint64 `db:"doctor_id" json:"doctorID"`
+	Institution string `db:"institution" json:"institution"`
+	Specialty   string `db:"specialty" json:"specialty"`
+	StartYear   uint16 `db:"start_year" json:"startYear"`
+	EndYear     uint16 `db:"end_year" json:"endYear"`
 }
 
 // DoctorResidency описывает ординатуру врача
 type DoctorResidency struct {
-	ID          uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
-	DoctorID    uint64 `gorm:"not null" json:"doctor_id"`
-	Institution string `gorm:"type:varchar(255);not null" json:"institution"`
-	Specialty   string `gorm:"type:varchar(255);not null" json:"specialty"`
-	StartYear   uint16 `gorm:"not null" json:"start_year"`
-	EndYear     uint16 `gorm:"not null" json:"end_year"`
+	ID          uint64 `db:"id" json:"id"`
+	DoctorID    uint64 `db:"doctor_id" json:"doctorID"`
+	Institution string `db:"institution" json:"institution"`
+	Specialty   string `db:"specialty" json:"specialty"`
+	StartYear   uint16 `db:"start_year" json:"startYear"`
+	EndYear     uint16 `db:"end_year" json:"endYear"`
 }
 
 // DoctorCourse описывает курсы повышения квалификации
 type DoctorCourse struct {
-	ID         uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
-	DoctorID   uint64 `gorm:"not null" json:"doctor_id"`
-	CourseName string `gorm:"type:varchar(255);not null" json:"course_name"`
-	Year       uint16 `gorm:"not null" json:"year"`
+	ID         uint64 `db:"id" json:"id"`
+	DoctorID   uint64 `db:"doctor_id" json:"doctorID"`
+	CourseName string `db:"course_name" json:"courseName"`
+	Year       uint16 `db:"year" json:"year"`
 }
 
 // DoctorCertificate описывает сертификаты врача
 type DoctorCertificate struct {
-	ID         uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
-	DoctorID   uint64         `gorm:"not null" json:"doctor_id"`
-	CertName   string         `gorm:"type:varchar(255);not null" json:"cert_name"`
-	CertNumber sql.NullString `gorm:"type:varchar(100)" json:"cert_number,omitzero"`
+	ID         uint64         `db:"id" json:"id"`
+	DoctorID   uint64         `db:"doctor_id" json:"doctorID"`
+	CertName   string         `db:"cert_name" json:"certName"`
+	CertNumber sql.NullString `db:"cert_number" json:"certNumber,omitempty"`
 }
 
 // DoctorSkill описывает профессиональные навыки врача
 type DoctorSkill struct {
-	ID        uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
-	DoctorID  uint64 `gorm:"not null" json:"doctor_id"`
-	SkillName string `gorm:"type:varchar(255);not null" json:"skill_name"`
+	ID        uint64 `db:"id" json:"id"`
+	DoctorID  uint64 `db:"doctor_id" json:"doctorID"`
+	SkillName string `db:"skill_name" json:"skillName"`
 }
 
 // DoctorSpecialization описывает узкие специализации врача
 type DoctorSpecialization struct {
-	ID       uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
-	DoctorID uint64 `gorm:"not null" json:"doctor_id"`
-	Area     string `gorm:"type:varchar(255);not null" json:"area"`
+	ID       uint64 `db:"id" json:"id"`
+	DoctorID uint64 `db:"doctor_id" json:"doctorID"`
+	Area     string `db:"area" json:"area"`
 }

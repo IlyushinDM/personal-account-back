@@ -7,16 +7,12 @@ import (
 
 // LabAnalysis представляет лабораторный анализ
 type LabAnalysis struct {
-	ID            uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
-	UserID        uint64         `gorm:"not null;index" json:"user_id"`
-	AppointmentID sql.NullInt64  `gorm:"index" json:"appointment_id,omitempty"` // Анализ может быть без записи? Пока - да
-	Name          string         `gorm:"type:varchar(255);not null" json:"name"`
-	AssignedDate  time.Time      `gorm:"type:date;not null" json:"assigned_date"`
-	StatusID      uint32         `gorm:"not null;index" json:"status_id"`
-	ResultFileURL sql.NullString `gorm:"type:varchar(512)" json:"result_file_url,omitempty"`
-	ClinicID      sql.NullInt64  `gorm:"index" json:"clinic_id,omitempty"`
-
-	// Связи
-	Status AnalysisStatus `gorm:"foreignKey:StatusID" json:"status,omitempty"`
-	Clinic Clinic         `gorm:"foreignKey:ClinicID" json:"clinic,omitempty"`
+	ID            uint64         `db:"id" json:"id"`
+	UserID        uint64         `db:"user_id" json:"userID"`
+	AppointmentID sql.NullInt64  `db:"appointment_id" json:"appointmentID,omitempty"`
+	Name          string         `db:"name" json:"name"`
+	AssignedDate  time.Time      `db:"assigned_date" json:"assignedDate"`
+	StatusID      uint32         `db:"status_id" json:"statusID"`
+	ResultFileURL sql.NullString `db:"result_file_url" json:"resultFileURL,omitempty"`
+	ClinicID      sql.NullInt64  `db:"clinic_id" json:"clinicID,omitempty"`
 }
