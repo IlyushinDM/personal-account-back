@@ -9,7 +9,7 @@ env: "local"
 
 # Настройки базы данных
 database:
-  url: "postgres://postgres:131345@localhost:5432/medical_db?sslmode=disable"
+  url: "postgresql://postgres:root@localhost:5432/lkk_db?sslmode=disable"
 
 # Настройки веб-сервера
 http_server:

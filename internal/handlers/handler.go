@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	_ "lk/docs" // ссылка на сгенерированную документацию
+	//_ "lk/docs" // ссылка на сгенерированную документацию
 
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
