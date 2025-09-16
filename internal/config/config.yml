@@ -1,0 +1,36 @@
+#     Конфигурационный файл для локальной разработки
+# ---------------------------------------------------------------
+# Этот файл считывается при локальном запуске, если не задана
+# переменная окружения CONFIG_PATH.
+# Переменные окружения из .env файла имеют приоритет над этим файлом.
+
+# Среда выполнения: local, dev, prod
+env: "local"
+
+# Настройки базы данных
+database:
+  url: "postgres://postgres:131345@localhost:5432/medical_db?sslmode=disable"
+
+# Настройки веб-сервера
+http_server:
+  port: "8080"
+  timeout: 5s
+  idle_timeout: 60s
+
+# Настройки аутентификации (JWT)
+auth:
+  jwt_secret_key: "your-super-secret-key-that-is-very-long-and-secure"
+  token_ttl: 1h
+
+# Настройки файлового хранилища MinIO
+minio:
+  endpoint: "localhost:9000"
+  access_key: "your_minio_access_key"
+  secret_key: "your_minio_secret_key"
+  bucket_name: "medical-files"
+  use_ssl: false
+
+# Настройки SMS-шлюза
+sms:
+  api_key: "your_sms_provider_api_key"
+  sender_name: "MedCenter"
