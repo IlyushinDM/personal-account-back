@@ -1,0 +1,1 @@
+DROP SCHEMA IF EXISTS medical_center RESTRICT;
