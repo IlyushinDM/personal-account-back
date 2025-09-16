@@ -7,56 +7,42 @@ import (
 
 // Appointment представляет запись на прием к врачу
 type Appointment struct {
-	ID                   uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
-	UserID               uint64         `gorm:"not null;index" json:"user_id"`
-	DoctorID             uint64         `gorm:"not null;index" json:"doctor_id"`
-	ServiceID            uint64         `gorm:"not null" json:"service_id"`
-	ClinicID             uint64         `gorm:"not null" json:"clinic_id"`
-	AppointmentDate      time.Time      `gorm:"type:date;not null" json:"appointment_date"`
-	AppointmentTime      string         `gorm:"type:time;not null" json:"appointment_time"`
-	StatusID             uint32         `gorm:"not null" json:"status_id"`
-	PriceAtBooking       float64        `gorm:"type:numeric(10,2);not null" json:"price_at_booking"`
-	IsDMS                bool           `gorm:"not null;default:false" json:"is_dms"`
-	PreVisitInstructions sql.NullString `gorm:"type:text" json:"pre_visit_instructions,omitzero"`
-	Diagnosis            sql.NullString `gorm:"type:text" json:"diagnosis,omitzero"`
-	Recommendations      sql.NullString `gorm:"type:text" json:"recommendations,omitzero"`
-	ResultFileURL        sql.NullString `gorm:"type:varchar(512)" json:"result_file_url,omitzero"`
-	CreatedAt            time.Time      `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
-	UpdatedAt            time.Time      `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
-
-	// Связи, необходимые для составления записи
-	User    User              `gorm:"foreignKey:UserID" json:"user,omitzero"`
-	Doctor  Doctor            `gorm:"foreignKey:DoctorID" json:"doctor,omitzero"`
-	Service Service           `gorm:"foreignKey:ServiceID" json:"service,omitzero"`
-	Clinic  Clinic            `gorm:"foreignKey:ClinicID" json:"clinic,omitzero"`
-	Status  AppointmentStatus `gorm:"foreignKey:StatusID" json:"status,omitzero"`
+	ID                   uint64         `db:"id" json:"id"`
+	UserID               uint64         `db:"user_id" json:"userID"`
+	DoctorID             uint64         `db:"doctor_id" json:"doctorID"`
+	ServiceID            uint64         `db:"service_id" json:"serviceID"`
+	ClinicID             uint64         `db:"clinic_id" json:"clinicID"`
+	AppointmentDate      time.Time      `db:"appointment_date" json:"appointmentDate"`
+	AppointmentTime      string         `db:"appointment_time" json:"appointmentTime"`
+	StatusID             uint32         `db:"status_id" json:"statusID"`
+	PriceAtBooking       float64        `db:"price_at_booking" json:"priceAtBooking"`
+	IsDMS                bool           `db:"is_dms" json:"isDMS"`
+	PreVisitInstructions sql.NullString `db:"pre_visit_instructions" json:"preVisitInstructions,omitempty"`
+	Diagnosis            sql.NullString `db:"diagnosis" json:"diagnosis,omitempty"`
+	Recommendations      sql.NullString `db:"recommendations" json:"recommendations,omitempty"`
+	ResultFileURL        sql.NullString `db:"result_file_url" json:"resultFileURL,omitempty"`
+	CreatedAt            time.Time      `db:"created_at" json:"createdAt"`
+	UpdatedAt            time.Time      `db:"updated_at" json:"updatedAt"`
 }
 
 // Prescription представляет назначение/рецепт от врача
 type Prescription struct {
-	ID            uint64       `gorm:"primaryKey;autoIncrement" json:"id"`
-	AppointmentID uint64       `gorm:"not null;index" json:"appointment_id"`
-	DoctorID      uint64       `gorm:"not null;index" json:"doctor_id"`
-	Content       string       `gorm:"type:text;not null" json:"content"`
-	Status        string       `gorm:"type:varchar(20);not null;default:'active'" json:"status"`
-	CompletedAt   sql.NullTime `gorm:"null" json:"completed_at,omitzero"`
-	CreatedAt     time.Time    `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
-
-	// Связи
-	Appointment Appointment `gorm:"foreignKey:AppointmentID" json:"appointment,omitzero"`
-	Doctor      Doctor      `gorm:"foreignKey:DoctorID" json:"doctor,omitzero"`
+	ID            uint64       `db:"id" json:"id"`
+	AppointmentID uint64       `db:"appointment_id" json:"appointmentID"`
+	DoctorID      uint64       `db:"doctor_id" json:"doctorID"`
+	Content       string       `db:"content" json:"content"`
+	Status        string       `db:"status" json:"status"`
+	CompletedAt   sql.NullTime `db:"completed_at" json:"completedAt,omitempty"`
+	CreatedAt     time.Time    `db:"created_at" json:"createdAt"`
 }
 
 // Review представляет отзыв пациента о враче
 type Review struct {
-	ID          uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
-	UserID      uint64         `gorm:"not null;index" json:"user_id"`
-	DoctorID    uint64         `gorm:"not null;index" json:"doctor_id"`
-	Rating      uint16         `gorm:"not null" json:"rating"`
-	Comment     sql.NullString `gorm:"type:text" json:"comment,omitzero"`
-	IsModerated bool           `gorm:"not null;default:false" json:"is_moderated"`
-	CreatedAt   time.Time      `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
-
-	// Связи
-	User User `gorm:"foreignKey:UserID" json:"user,omitzero"`
+	ID          uint64         `db:"id" json:"id"`
+	UserID      uint64         `db:"user_id" json:"userID"`
+	DoctorID    uint64         `db:"doctor_id" json:"doctorID"`
+	Rating      uint16         `db:"rating" json:"rating"`
+	Comment     sql.NullString `db:"comment" json:"comment,omitempty"`
+	IsModerated bool           `db:"is_moderated" json:"isModerated"`
+	CreatedAt   time.Time      `db:"created_at" json:"createdAt"`
 }

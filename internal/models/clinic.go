@@ -4,28 +4,25 @@ import "database/sql"
 
 // Clinic представляет медицинский центр
 type Clinic struct {
-	ID        uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name      string `gorm:"type:varchar(150);not null" json:"name"`
-	Address   string `gorm:"type:varchar(512);not null" json:"address"`
-	WorkHours string `gorm:"type:varchar(100);not null" json:"work_hours"`
-	Phone     string `gorm:"type:varchar(20);not null" json:"phone"`
-
-	// Связи
-	Doctors []Doctor `gorm:"many2many:doctor_clinics" json:"doctors,omitempty"`
+	ID        uint64 `db:"id" json:"id"`
+	Name      string `db:"name" json:"name"`
+	Address   string `db:"address" json:"address"`
+	WorkHours string `db:"work_hours" json:"workHours"`
+	Phone     string `db:"phone" json:"phone"`
 }
 
 // Service представляет медицинскую услугу, оказываемую врачом
 type Service struct {
-	ID              uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name            string         `gorm:"type:varchar(255);not null" json:"name"`
-	Price           float64        `gorm:"type:numeric(10,2);not null" json:"price"`
-	DurationMinutes uint16         `gorm:"not null" json:"duration_minutes"`
-	Description     sql.NullString `gorm:"type:text" json:"description,omitzero"`
-	DoctorID        uint64         `gorm:"not null;index" json:"doctor_id"`
+	ID              uint64         `db:"id" json:"id"`
+	Name            string         `db:"name" json:"name"`
+	Price           float64        `db:"price" json:"price"`
+	DurationMinutes uint16         `db:"duration_minutes" json:"durationMinutes"`
+	Description     sql.NullString `db:"description" json:"description,omitempty"`
+	DoctorID        uint64         `db:"doctor_id" json:"doctorID"`
 }
 
 // DoctorClinic связывает врачей и клиники
 type DoctorClinic struct {
-	DoctorID uint64 `gorm:"primaryKey" json:"doctor_id"`
-	ClinicID uint64 `gorm:"primaryKey" json:"clinic_id"`
+	DoctorID uint64 `db:"doctor_id" json:"doctorID"`
+	ClinicID uint64 `db:"clinic_id" json:"clinicID"`
 }
