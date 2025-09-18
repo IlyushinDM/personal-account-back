@@ -27,9 +27,19 @@ func (r *DirectoryPostgres) GetAllDepartments(ctx context.Context) ([]models.Dep
 }
 
 // GetAllSpecialties возвращает список всех врачебных специальностей.
-func (r *DirectoryPostgres) GetAllSpecialties(ctx context.Context) ([]models.Specialty, error) {
+// * Если departmentID не является nil, фильтрует по ID отделения.
+func (r *DirectoryPostgres) GetAllSpecialties(ctx context.Context, departmentID *uint32) ([]models.Specialty, error) {
 	var specialties []models.Specialty
-	query := "SELECT * FROM medical_center.specialties ORDER BY name"
-	err := r.db.SelectContext(ctx, &specialties, query)
+	query := "SELECT * FROM medical_center.specialties"
+	args := []interface{}{}
+
+	if departmentID != nil {
+		query += " WHERE department_id=$1"
+		args = append(args, *departmentID)
+	}
+
+	query += " ORDER BY name"
+
+	err := r.db.SelectContext(ctx, &specialties, query, args...)
 	return specialties, err
 }

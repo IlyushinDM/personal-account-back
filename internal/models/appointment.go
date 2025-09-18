@@ -29,6 +29,7 @@ type Appointment struct {
 type Prescription struct {
 	ID            uint64       `db:"id" json:"id"`
 	AppointmentID uint64       `db:"appointment_id" json:"appointmentID"`
+	UserID        uint64       `db:"user_id" json:"userID"`
 	DoctorID      uint64       `db:"doctor_id" json:"doctorID"`
 	Content       string       `db:"content" json:"content"`
 	Status        string       `db:"status" json:"status"`
@@ -45,4 +46,23 @@ type Review struct {
 	Comment     sql.NullString `db:"comment" json:"comment,omitempty"`
 	IsModerated bool           `db:"is_moderated" json:"isModerated"`
 	CreatedAt   time.Time      `db:"created_at" json:"createdAt"`
+}
+
+// Recommendation представляет DTO для текста рекомендации.
+type Recommendation struct {
+	Text string `json:"text"`
+}
+
+// AvailableDatesResponse представляет DTO для ответа со свободными датами.
+type AvailableDatesResponse struct {
+	SpecialistID   uint64   `json:"specialistId"`
+	Month          string   `json:"month"`
+	AvailableDates []string `json:"availableDates"`
+}
+
+// AvailableSlotsResponse представляет DTO для ответа со свободными слотами.
+type AvailableSlotsResponse struct {
+	SpecialistID   uint64   `json:"specialistId"`
+	Date           string   `json:"date"`
+	AvailableSlots []string `json:"availableSlots"`
 }

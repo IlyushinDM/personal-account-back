@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
 	"lk/internal/models"
+	"lk/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,17 +23,20 @@ type createAppointmentInput struct {
 	IsDMS           bool      `json:"isDms"`
 }
 
-// @Summary Create Appointment
-// @Security ApiKeyAuth
-// @Tags appointments
-// @Description Create a new appointment for the current user
-// @ID create-appointment
-// @Accept  json
-// @Produce  json
-// @Param input body createAppointmentInput true "Appointment info"
-// @Success 201 {object} map[string]interface{}
-// @Failure 400,401,500 {object} errorResponse
-// @Router /appointments [post]
+// @Summary      Создать запись на приём
+// @Security     ApiKeyAuth
+// @Tags         appointments
+// @Description  Создает новую запись на прием для текущего пользователя.
+// @ID           create-appointment
+// @Accept       json
+// @Produce      json
+// @Param        input body createAppointmentInput true "Информация о записи"
+// @Success      201 {object} map[string]interface{} "message, appointmentID"
+// @Failure      400 {object} errorResponse "Неверные входные данные"
+// @Failure      401 {object} errorResponse "Пользователь не авторизован"
+// @Failure      404 {object} errorResponse "Врач с указанным ID не найден"
+// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Router       /appointments [post]
 func (h *Handler) createAppointment(c *gin.Context) {
 	userID, err := getUserID(c)
 	if err != nil {
@@ -59,6 +64,10 @@ func (h *Handler) createAppointment(c *gin.Context) {
 
 	appointmentID, err := h.services.Appointment.CreateAppointment(c.Request.Context(), appointment)
 	if err != nil {
+		if errors.Is(err, services.ErrDoctorNotFound) {
+			newErrorResponse(c, http.StatusNotFound, err.Error())
+			return
+		}
 		newErrorResponse(c, http.StatusInternalServerError, "Failed to create appointment: "+err.Error())
 		return
 	}
@@ -69,15 +78,16 @@ func (h *Handler) createAppointment(c *gin.Context) {
 	})
 }
 
-// @Summary Get User Appointments
-// @Security ApiKeyAuth
-// @Tags appointments
-// @Description Get a list of all appointments for the current user
-// @ID get-user-appointments
-// @Produce  json
-// @Success 200 {object} []models.Appointment
-// @Failure 401,500 {object} errorResponse
-// @Router /appointments [get]
+// @Summary      Получить записи на приём пользователя
+// @Security     ApiKeyAuth
+// @Tags         appointments
+// @Description  Получает список всех записей на прием для текущего пользователя.
+// @ID           get-user-appointments
+// @Produce      json
+// @Success      200 {array} models.Appointment
+// @Failure      401 {object} errorResponse "Пользователь не авторизован"
+// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Router       /appointments [get]
 func (h *Handler) getUserAppointments(c *gin.Context) {
 	userID, err := getUserID(c)
 	if err != nil {
@@ -94,37 +104,146 @@ func (h *Handler) getUserAppointments(c *gin.Context) {
 	c.JSON(http.StatusOK, appointments)
 }
 
-// @Summary Cancel Appointment
-// @Security ApiKeyAuth
-// @Tags appointments
-// @Description Cancel an existing appointment
-// @ID cancel-appointment
-// @Produce  json
-// @Param id path int true "Appointment ID"
-// @Success 200 {object} statusResponse
-// @Failure 400,401,403,500 {object} errorResponse
-// @Router /appointments/{id} [delete]
+// @Summary      Отменить запись на приём
+// @Security     ApiKeyAuth
+// @Tags         appointments
+// @Description  Отменяет существующую запись на прием по ее ID.
+// @ID           cancel-appointment
+// @Produce      json
+// @Param        id path int true "ID Записи"
+// @Success      200 {object} statusResponse "Статус операции"
+// @Failure      400 {object} errorResponse "Неверный формат ID"
+// @Failure      401 {object} errorResponse "Пользователь не авторизован"
+// @Failure      403 {object} errorResponse "Нет прав на отмену этой записи"
+// @Failure      404 {object} errorResponse "Запись не найдена"
+// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Router       /appointments/{id} [delete]
 func (h *Handler) cancelAppointment(c *gin.Context) {
-	_, err := getUserID(c) // Проверяем авторизацию
+	userID, err := getUserID(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
 		return
 	}
 
 	idStr := c.Param("id")
-	_, err = strconv.ParseUint(idStr, 10, 64)
+	appointmentID, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
 		newErrorResponse(c, http.StatusBadRequest, "Invalid appointment ID format")
 		return
 	}
 
-	// TODO: Реализовать логику отмены в сервисе и репозитории.
-	// 1. Сервис должен проверить, принадлежит ли эта запись текущему пользователю.
-	//    Это защитит от ситуации, когда пользователь A пытается отменить запись пользователя B.
-	// 2. Репозиторий должен обновить статус записи на "Отменено".
+	err = h.services.Appointment.CancelAppointment(c.Request.Context(), userID, appointmentID)
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrAppointmentNotFound):
+			newErrorResponse(c, http.StatusNotFound, err.Error())
+		case errors.Is(err, services.ErrForbidden):
+			newErrorResponse(c, http.StatusForbidden, err.Error())
+		default:
+			newErrorResponse(c, http.StatusInternalServerError, "Failed to cancel appointment: "+err.Error())
+		}
+		return
+	}
 
-	// Заглушка
-	// err = h.services.Appointment.Cancel(c.Request.Context(), userID, appointmentID)
+	c.JSON(http.StatusOK, statusResponse{Status: "appointment cancelled successfully"})
+}
 
-	c.JSON(http.StatusNotImplemented, gin.H{"message": "not implemented yet"})
+// availableDatesQuery - структура для валидации query-параметров.
+type availableDatesQuery struct {
+	SpecialistID uint64 `form:"specialistId" binding:"required"`
+	ServiceID    uint64 `form:"serviceId" binding:"required"`
+	Month        string `form:"month" binding:"required"` // Формат: YYYY-MM
+}
+
+// @Summary      Получить доступные дни для записи
+// @Security     ApiKeyAuth
+// @Tags         appointments
+// @Description  Возвращает список дней в указанном месяце, в которые у специалиста есть свободные слоты.
+// @Id           get-available-dates
+// @Produce      json
+// @Param        specialistId query int true "ID Специалиста"
+// @Param        serviceId query int true "ID Услуги"
+// @Param        month query string true "Месяц в формате YYYY-MM"
+// @Success      200 {object} models.AvailableDatesResponse
+// @Failure      400 {object} errorResponse "Неверные параметры запроса"
+// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Router       /appointments/available-dates [get]
+func (h *Handler) getAvailableDates(c *gin.Context) {
+	var queryParams availableDatesQuery
+	if err := c.ShouldBindQuery(&queryParams); err != nil {
+		newErrorResponse(c, http.StatusBadRequest, "Invalid query parameters: "+err.Error())
+		return
+	}
+
+	dates, err := h.services.Appointment.GetAvailableDates(c.Request.Context(),
+		queryParams.SpecialistID, queryParams.ServiceID, queryParams.Month)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, "Failed to get available dates: "+err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, dates)
+}
+
+// availableSlotsQuery - структура для валидации query-параметров.
+type availableSlotsQuery struct {
+	SpecialistID uint64 `form:"specialistId" binding:"required"`
+	ServiceID    uint64 `form:"serviceId" binding:"required"`
+	Date         string `form:"date" binding:"required"` // Формат: YYYY-MM-DD
+}
+
+// @Summary      Получить доступные слоты времени
+// @Security     ApiKeyAuth
+// @Tags         appointments
+// @Description  Возвращает список свободных временных слотов у специалиста на указанную дату.
+// @Id           get-available-slots
+// @Produce      json
+// @Param        specialistId query int true "ID Специалиста"
+// @Param        serviceId query int true "ID Услуги"
+// @Param        date query string true "Дата в формате YYYY-MM-DD"
+// @Success      200 {object} models.AvailableSlotsResponse
+// @Failure      400 {object} errorResponse "Неверные параметры запроса"
+// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Router       /appointments/available-slots [get]
+func (h *Handler) getAvailableSlots(c *gin.Context) {
+	var queryParams availableSlotsQuery
+	if err := c.ShouldBindQuery(&queryParams); err != nil {
+		newErrorResponse(c, http.StatusBadRequest, "Invalid query parameters: "+err.Error())
+		return
+	}
+
+	slots, err := h.services.Appointment.GetAvailableSlots(c.Request.Context(),
+		queryParams.SpecialistID, queryParams.ServiceID, queryParams.Date)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, "Failed to get available slots: "+err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, slots)
+}
+
+// @Summary      Получить предстоящие записи пользователя
+// @Security     ApiKeyAuth
+// @Tags         appointments
+// @Description  Получает отсортированный список предстоящих записей для текущего пользователя.
+// @Id           get-upcoming-appointments
+// @Produce      json
+// @Success      200 {array} models.Appointment
+// @Failure      401 {object} errorResponse "Пользователь не авторизован"
+// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Router       /appointments/upcoming [get]
+func (h *Handler) getUpcomingAppointments(c *gin.Context) {
+	userID, err := getUserID(c)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
+		return
+	}
+
+	appointments, err := h.services.Appointment.GetUpcomingForUser(c.Request.Context(), userID)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, "Failed to get upcoming appointments: "+err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, appointments)
 }

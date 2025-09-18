@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS medical_center.prescriptions (
-	prescription_id bigserial PRIMARY KEY,
+	id bigserial PRIMARY KEY,
 	appointment_id bigint NOT NULL,
 	doctor_id bigint NOT NULL,
 	content text NOT NULL,
@@ -7,10 +7,10 @@ CREATE TABLE IF NOT EXISTS medical_center.prescriptions (
 	created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	completed_at timestamp without time zone,
 	CONSTRAINT prescriptions_appointment_id_fkey FOREIGN KEY (appointment_id)
-		REFERENCES medical_center.appointments(appointment_id)
+		REFERENCES medical_center.appointments(id)
 		ON UPDATE NO ACTION ON DELETE NO ACTION,
 	CONSTRAINT prescriptions_doctor_id_fkey FOREIGN KEY (doctor_id)
-		REFERENCES medical_center.doctors(doctor_id)
+		REFERENCES medical_center.doctors(id)
 		ON UPDATE NO ACTION ON DELETE NO ACTION
 );
 

@@ -26,7 +26,8 @@ func (s *directoryService) GetAllDepartmentsWithSpecialties(ctx context.Context)
 		return nil, err
 	}
 
-	specialties, err := s.repo.GetAllSpecialties(ctx)
+	// Вызываем метод с nil, чтобы получить ВСЕ специальности без фильтрации.
+	specialties, err := s.repo.GetAllSpecialties(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -40,12 +41,22 @@ func (s *directoryService) GetAllDepartmentsWithSpecialties(ctx context.Context)
 	// Собираем итоговую структуру.
 	result := make([]models.DepartmentWithSpecialties, 0, len(departments))
 	for _, dept := range departments {
+		// Убедимся, что даже если у отделения нет специальностей, поле будет пустым, а не nil
+		specs, ok := specialtiesByDeptID[dept.ID]
+		if !ok {
+			specs = []models.Specialty{}
+		}
 		result = append(result, models.DepartmentWithSpecialties{
 			ID:          dept.ID,
 			Name:        dept.Name,
-			Specialties: specialtiesByDeptID[dept.ID],
+			Specialties: specs,
 		})
 	}
 
 	return result, nil
+}
+
+// GetSpecialties получает список специальностей, опционально фильтруя по отделению.
+func (s *directoryService) GetSpecialties(ctx context.Context, departmentID *uint32) ([]models.Specialty, error) {
+	return s.repo.GetAllSpecialties(ctx, departmentID)
 }
