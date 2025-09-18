@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	//_ "lk/docs" // ссылка на сгенерированную документацию
+	_ "lk/docs"
 
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -50,31 +50,53 @@ func (h *Handler) InitRoutes() *gin.Engine {
 		authorized := apiV1.Group("/")
 		authorized.Use(h.userIdentity) // Применяем middleware ко всей группе
 		{
-			// Профиль пользователя (FR-2.x)
+			// --- ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ (FR-2.x) ---
 			profile := authorized.Group("/profile")
 			{
 				profile.GET("/", h.getProfile)
 				profile.PATCH("/", h.updateProfile)
+				profile.POST("/avatar", h.updateAvatar)
 			}
 
-			// Специалисты и справочники (FR-3.x)
+			// --- СПРАВОЧНИКИ И ОБЩАЯ ИНФОРМАЦИЯ (FR-2.x, FR-3.x) ---
+			authorized.GET("/clinic-info", h.getClinicInfo)         // FR-2.3
+			authorized.GET("/legal/documents", h.getLegalDocuments) // FR-2.9
+			authorized.GET("/specialties", h.getSpecialties)        // FR-3.2
 			departments := authorized.Group("/departments")
 			{
-				departments.GET("/", h.getDepartmentsTree) // Получить дерево отделений и специальностей
+				departments.GET("/", h.getDepartmentsTree)
 			}
 
+			// --- СПЕЦИАЛИСТЫ (FR-3.x) ---
 			specialists := authorized.Group("/specialists")
 			{
-				specialists.GET("/", h.findSpecialists)      // Поиск врачей по параметрам
-				specialists.GET("/:id", h.getSpecialistByID) // Получить детальный профиль врача
+				specialists.GET("/", h.findSpecialists)
+				specialists.GET("/:id", h.getSpecialistByID)
+				specialists.GET("/:id/recommendations", h.getSpecialistRecommendations)
 			}
 
-			// Записи на прием (FR-3.x)
+			// --- УСЛУГИ (FR-5.x) ---
+			services := authorized.Group("/services")
+			{
+				services.GET("/:id/recommendations", h.getServiceRecommendations)
+			}
+
+			// --- ЗАПИСИ НА ПРИЕМ (FR-2.x, FR-5.x) ---
 			appointments := authorized.Group("/appointments")
 			{
-				appointments.GET("/", h.getUserAppointments)     // Получить все записи пользователя
-				appointments.POST("/", h.createAppointment)      // Создать новую запись
-				appointments.DELETE("/:id", h.cancelAppointment) // Отменить запись
+				appointments.GET("/", h.getUserAppointments)
+				appointments.POST("/", h.createAppointment)
+				appointments.GET("/upcoming", h.getUpcomingAppointments)
+				appointments.DELETE("/:id", h.cancelAppointment)
+				appointments.GET("/available-dates", h.getAvailableDates)
+				appointments.GET("/available-slots", h.getAvailableSlots)
+			}
+
+			// --- НАЗНАЧЕНИЯ (FR-2.x) ---
+			prescriptions := authorized.Group("/prescriptions")
+			{
+				prescriptions.GET("/active", h.getActivePrescriptions)
+				prescriptions.POST("/:id/archive", h.archivePrescription)
 			}
 		}
 	}
