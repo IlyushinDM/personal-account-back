@@ -69,3 +69,9 @@ type DoctorSpecialization struct {
 	DoctorID uint64 `db:"doctor_id" json:"doctorID"`
 	Area     string `db:"area" json:"area"`
 }
+
+// PaginatedDoctorsResponse - это DTO для возврата пагинированного списка врачей.
+type PaginatedDoctorsResponse struct {
+	Total int      `json:"total" example:"25"`
+	Items []Doctor `json:"items"`
+}
