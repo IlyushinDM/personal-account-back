@@ -6,7 +6,7 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,6 +14,7 @@ import (
 
 	"lk/internal/config"
 	"lk/internal/handlers"
+	"lk/internal/models"
 	"lk/internal/repository"
 	"lk/internal/server"
 	"lk/internal/services"
@@ -33,26 +34,50 @@ import (
 
 // @host localhost:8080
 // @BasePath /api/v1
+// @schemes http https
 
 // @securityDefinitions.apikey ApiKeyAuth
 // @in header
 // @name Authorization
 // @description Используйте "Bearer " перед вашим токеном."
+
+// swagger:meta
+// nolint
+type _ struct {
+	// Этот блок нужен для того, чтобы swag корректно распознал
+	// типы из пакета models, используемые в аннотациях.
+	_ models.DepartmentWithSpecialties
+	_ models.Doctor
+	_ models.Appointment
+	_ models.UserProfile
+	_ models.Specialty
+	_ models.PaginatedDoctorsResponse
+	_ models.Recommendation
+	_ models.AvailableDatesResponse
+	_ models.AvailableSlotsResponse
+}
+
 func main() {
+	// Загружаем переменные окружения из .env файла, если он существует.
+	// Это удобно для локальной разработки.
 	if err := godotenv.Load(); err != nil {
-		fmt.Println("Файл .env не найден, используются системные переменные окружения")
+		log.Println("Файл .env не найден, используются системные переменные окружения")
 	}
 
+	// Инициализируем конфигурацию приложения.
+	// Приложение завершит работу, если обязательные переменные не установлены.
 	cfg := config.MustLoad()
 
+	// Устанавливаем соединение с базой данных PostgreSQL.
 	db, err := sqlx.Connect("postgres", cfg.Database.URL)
 	if err != nil {
-		fmt.Printf("не удалось подключиться к базе данных: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("не удалось подключиться к базе данных: %v", err)
 	}
 	defer db.Close()
-	fmt.Println("соединение с базой данных установлено")
+	log.Println("соединение с базой данных установлено")
 
+	// Инициализируем слои приложения (репозиторий, сервисы, обработчики).
+	// Внедряем зависимости сверху вниз (DI: Dependency Injection).
 	repos := repository.NewRepository(db)
 	serviceDeps := services.ServiceDependencies{
 		Repos:      repos,
@@ -61,24 +86,27 @@ func main() {
 	}
 	services := services.NewService(serviceDeps)
 	handlers := handlers.NewHandler(services)
-	fmt.Println("слои приложения инициализированы")
+	log.Println("слои приложения инициализированы")
 
+	// Запускаем HTTP-сервер в отдельной горутине.
 	srv := new(server.Server)
 	go func() {
 		if err := srv.Run(cfg.HTTPServer.Port, handlers.InitRoutes()); err != nil &&
 			!errors.Is(err, http.ErrServerClosed) {
-			fmt.Printf("ошибка при запуске http-сервера: %v\n", err)
+			log.Printf("ошибка при запуске http-сервера: %v", err)
 		}
 	}()
-	fmt.Printf("сервер запущен на порту: %s\n", cfg.HTTPServer.Port)
+	log.Printf("сервер запущен на порту: %s", cfg.HTTPServer.Port)
 
-	// Плавное завершение работы
+	// Настраиваем graceful shutdown (плавное завершение работы).
+	// Ждем сигнала от операционной системы (SIGINT, SIGTERM).
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 	<-quit
 
-	fmt.Println("сервер выключается")
+	// При получении сигнала начинаем процесс остановки сервера.
+	log.Println("сервер выключается")
 	if err := srv.Shutdown(context.Background()); err != nil {
-		fmt.Printf("произошла ошибка при выключении сервера: %v\n", err)
+		log.Printf("произошла ошибка при выключении сервера: %v", err)
 	}
 }
