@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -50,6 +51,7 @@ func (s *authService) CreateUser(ctx context.Context, phone, password, fullName,
 		return 0, ErrUserExists
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
+		log.Printf("ERROR: database error while checking user existence for phone %s: %v", phone, err)
 		return 0, fmt.Errorf("database error while checking user: %w", err)
 	}
 
