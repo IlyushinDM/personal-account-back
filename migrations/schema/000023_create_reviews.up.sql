@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS medical_center.reviews (
-	review_id bigserial PRIMARY KEY,
+	id bigserial PRIMARY KEY,
 	user_id bigint NOT NULL,
 	doctor_id bigint NOT NULL,
 	rating smallint NOT NULL,
@@ -7,10 +7,10 @@ CREATE TABLE IF NOT EXISTS medical_center.reviews (
 	created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	is_moderated boolean NOT NULL DEFAULT false,
 	CONSTRAINT reviews_user_id_fkey FOREIGN KEY (user_id)
-		REFERENCES medical_center.users(user_id)
+		REFERENCES medical_center.users(id)
 		ON UPDATE NO ACTION ON DELETE NO ACTION,
 	CONSTRAINT reviews_doctor_id_fkey FOREIGN KEY (doctor_id)
-		REFERENCES medical_center.doctors(doctor_id)
+		REFERENCES medical_center.doctors(id)
 		ON UPDATE NO ACTION ON DELETE NO ACTION
 );
 

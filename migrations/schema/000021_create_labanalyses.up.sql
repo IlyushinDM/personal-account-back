@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS medical_center.labanalyses (
-	analysis_id bigserial PRIMARY KEY,
+	id bigserial PRIMARY KEY,
 	user_id bigint NOT NULL,
 	appointment_id bigint,
 	name varchar(255) NOT NULL,
@@ -8,16 +8,16 @@ CREATE TABLE IF NOT EXISTS medical_center.labanalyses (
 	result_file_url varchar(512),
 	clinic_id bigint,
 	CONSTRAINT labanalyses_user_id_fkey FOREIGN KEY (user_id)
-		REFERENCES medical_center.users(user_id)
+		REFERENCES medical_center.users(id)
 		ON UPDATE NO ACTION ON DELETE NO ACTION,
 	CONSTRAINT labanalyses_appointment_id_fkey FOREIGN KEY (appointment_id)
-		REFERENCES medical_center.appointments(appointment_id)
+		REFERENCES medical_center.appointments(id)
 		ON UPDATE NO ACTION ON DELETE NO ACTION,
 	CONSTRAINT labanalyses_clinic_id_fkey FOREIGN KEY (clinic_id)
-		REFERENCES medical_center.clinics(clinic_id)
+		REFERENCES medical_center.clinics(id)
 		ON UPDATE NO ACTION ON DELETE NO ACTION,
 	CONSTRAINT labanalyses_status_id_fkey FOREIGN KEY (status_id)
-		REFERENCES medical_center.analysisstatuses(status_id)
+		REFERENCES medical_center.analysisstatuses(id)
 		ON UPDATE NO ACTION ON DELETE NO ACTION
 );
 
