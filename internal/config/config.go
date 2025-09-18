@@ -1,10 +1,9 @@
 // Package config предоставляет структуры и функции для загрузки и управления
-// конфигурацией приложения из файлов (например, YAML) и переменных окружения.
+// конфигурацией приложения из переменных окружения.
 package config
 
 import (
 	"log"
-	"os"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -53,21 +52,11 @@ type SMSConfig struct {
 	SenderName string `yaml:"sender_name" env:"SMS_SENDER_NAME" env-required:"true"`
 }
 
-// MustLoad загружает конфигурацию.
+// MustLoad загружает конфигурацию из переменных окружения.
 func MustLoad() *Config {
-	configPath := os.Getenv("CONFIG_PATH")
-	if configPath == "" {
-		configPath = "internal/config/config.yml"
-	}
-
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		log.Printf("Config file not found at path: %s. Relying on environment variables.", configPath)
-	}
-
 	var cfg Config
-
-	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
-		log.Fatalf("cannot read config: %s", err)
+	if err := cleanenv.ReadEnv(&cfg); err != nil {
+		log.Fatalf("cannot read environment variables: %s", err)
 	}
 
 	return &cfg
