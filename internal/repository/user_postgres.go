@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"lk/internal/models"
 
@@ -19,7 +21,7 @@ func NewUserPostgres(db *sqlx.DB) *UserPostgres {
 }
 
 // CreateUser вставляет нового пользователя в таблицу users и возвращает его ID.
-// Эта функция должна вызываться внутри транзакции.
+// * Эта функция должна вызываться внутри транзакции.
 func (r *UserPostgres) CreateUser(ctx context.Context, tx *sqlx.Tx, user models.User) (uint64, error) {
 	var id uint64
 	query := "INSERT INTO medical_center.users (phone, password_hash) VALUES ($1, $2) RETURNING id"
@@ -31,7 +33,7 @@ func (r *UserPostgres) CreateUser(ctx context.Context, tx *sqlx.Tx, user models.
 }
 
 // CreateUserProfile вставляет новый профиль пользователя и возвращает его ID.
-// Эта функция должна вызываться внутри транзакции.
+// * Эта функция должна вызываться внутри транзакции.
 func (r *UserPostgres) CreateUserProfile(ctx context.Context, tx *sqlx.Tx, profile models.UserProfile) (uint64, error) {
 	var id uint64
 	query := `INSERT INTO medical_center.user_profiles
@@ -67,4 +69,44 @@ func (r *UserPostgres) GetUserProfileByUserID(ctx context.Context, userID uint64
 	query := "SELECT * FROM medical_center.user_profiles WHERE user_id=$1"
 	err := r.db.GetContext(ctx, &profile, query, userID)
 	return profile, err
+}
+
+// UpdateUserProfile обновляет данные профиля пользователя.
+func (r *UserPostgres) UpdateUserProfile(ctx context.Context, profile models.UserProfile) (models.UserProfile, error) {
+	var updatedProfile models.UserProfile
+
+	// Формируем запрос динамически, чтобы обновлять только переданные поля
+	queryParts := make([]string, 0)
+	args := make([]interface{}, 0)
+	argID := 1
+
+	if profile.Email.Valid {
+		queryParts = append(queryParts, fmt.Sprintf("email=$%d", argID))
+		args = append(args, profile.Email)
+		argID++
+	}
+	if profile.CityID > 0 {
+		queryParts = append(queryParts, fmt.Sprintf("city_id=$%d", argID))
+		args = append(args, profile.CityID)
+		argID++
+	}
+
+	if len(queryParts) == 0 {
+		// Если нечего обновлять, просто возвращаем текущий профиль
+		return r.GetUserProfileByUserID(ctx, profile.UserID)
+	}
+
+	query := fmt.Sprintf("UPDATE medical_center.user_profiles SET %s WHERE user_id=$%d RETURNING *",
+		strings.Join(queryParts, ", "), argID)
+	args = append(args, profile.UserID)
+
+	err := r.db.GetContext(ctx, &updatedProfile, query, args...)
+	return updatedProfile, err
+}
+
+// UpdateAvatar обновляет URL аватара для профиля пользователя.
+func (r *UserPostgres) UpdateAvatar(ctx context.Context, userID uint64, avatarURL string) error {
+	query := `UPDATE medical_center.user_profiles SET avatar_url = $1 WHERE user_id = $2`
+	_, err := r.db.ExecContext(ctx, query, avatarURL, userID)
+	return err
 }
