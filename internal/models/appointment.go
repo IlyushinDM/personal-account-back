@@ -7,7 +7,7 @@ import (
 
 // Appointment представляет запись на прием к врачу
 type Appointment struct {
-	ID                   uint64         `db:"id" json:"id"`
+	ID                   uint64         `gorm:"primarykey" db:"id" json:"id"`
 	UserID               uint64         `db:"user_id" json:"userID"`
 	DoctorID             uint64         `db:"doctor_id" json:"doctorID"`
 	ServiceID            uint64         `db:"service_id" json:"serviceID"`
@@ -27,7 +27,7 @@ type Appointment struct {
 
 // Prescription представляет назначение/рецепт от врача
 type Prescription struct {
-	ID            uint64       `db:"id" json:"id"`
+	ID            uint64       `gorm:"primarykey" db:"id" json:"id"`
 	AppointmentID uint64       `db:"appointment_id" json:"appointmentID"`
 	UserID        uint64       `db:"user_id" json:"userID"`
 	DoctorID      uint64       `db:"doctor_id" json:"doctorID"`
@@ -39,7 +39,7 @@ type Prescription struct {
 
 // Review представляет отзыв пациента о враче
 type Review struct {
-	ID          uint64         `db:"id" json:"id"`
+	ID          uint64         `gorm:"primarykey" db:"id" json:"id"`
 	UserID      uint64         `db:"user_id" json:"userID"`
 	DoctorID    uint64         `db:"doctor_id" json:"doctorID"`
 	Rating      uint16         `db:"rating" json:"rating"`

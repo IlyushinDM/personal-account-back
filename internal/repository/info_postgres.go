@@ -5,16 +5,16 @@ import (
 
 	"lk/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"gorm.io/gorm"
 )
 
 // InfoPostgres реализует InfoRepository.
 type InfoPostgres struct {
-	db *sqlx.DB
+	db *gorm.DB
 }
 
 // NewInfoPostgres создает новый экземпляр репозитория для общей информации.
-func NewInfoPostgres(db *sqlx.DB) *InfoPostgres {
+func NewInfoPostgres(db *gorm.DB) *InfoPostgres {
 	return &InfoPostgres{db: db}
 }
 
@@ -35,6 +35,7 @@ func (r *InfoPostgres) GetClinicInfo(ctx context.Context) (models.ClinicInfo, er
 			{Days: "сб", Hours: "09:00 - 18:00"},
 		},
 	}
+	// В реальном приложении можно было бы сделать r.db.WithContext(ctx).Find(&info)
 	return info, nil
 }
 

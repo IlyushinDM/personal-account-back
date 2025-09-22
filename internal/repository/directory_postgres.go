@@ -5,24 +5,23 @@ import (
 
 	"lk/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"gorm.io/gorm"
 )
 
 // DirectoryPostgres реализует DirectoryRepository для PostgreSQL.
 type DirectoryPostgres struct {
-	db *sqlx.DB
+	db *gorm.DB
 }
 
 // NewDirectoryPostgres создает новый экземпляр репозитория для справочников.
-func NewDirectoryPostgres(db *sqlx.DB) *DirectoryPostgres {
+func NewDirectoryPostgres(db *gorm.DB) *DirectoryPostgres {
 	return &DirectoryPostgres{db: db}
 }
 
 // GetAllDepartments возвращает список всех отделений клиники.
 func (r *DirectoryPostgres) GetAllDepartments(ctx context.Context) ([]models.Department, error) {
 	var departments []models.Department
-	query := "SELECT * FROM medical_center.departments ORDER BY name"
-	err := r.db.SelectContext(ctx, &departments, query)
+	err := r.db.WithContext(ctx).Order("name").Find(&departments).Error
 	return departments, err
 }
 
@@ -30,16 +29,12 @@ func (r *DirectoryPostgres) GetAllDepartments(ctx context.Context) ([]models.Dep
 // * Если departmentID не является nil, фильтрует по ID отделения.
 func (r *DirectoryPostgres) GetAllSpecialties(ctx context.Context, departmentID *uint32) ([]models.Specialty, error) {
 	var specialties []models.Specialty
-	query := "SELECT * FROM medical_center.specialties"
-	args := []interface{}{}
+	query := r.db.WithContext(ctx).Order("name")
 
 	if departmentID != nil {
-		query += " WHERE department_id=$1"
-		args = append(args, *departmentID)
+		query = query.Where("department_id = ?", *departmentID)
 	}
 
-	query += " ORDER BY name"
-
-	err := r.db.SelectContext(ctx, &specialties, query, args...)
+	err := query.Find(&specialties).Error
 	return specialties, err
 }

@@ -2,18 +2,17 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 
-	"github.com/jmoiron/sqlx"
+	"gorm.io/gorm"
 )
 
 // ServicePostgres реализует ServiceRepository для PostgreSQL.
 type ServicePostgres struct {
-	db *sqlx.DB
+	db *gorm.DB
 }
 
 // NewServicePostgres создает новый экземпляр репозитория для услуг.
-func NewServicePostgres(db *sqlx.DB) *ServicePostgres {
+func NewServicePostgres(db *gorm.DB) *ServicePostgres {
 	return &ServicePostgres{db: db}
 }
 
@@ -22,7 +21,7 @@ func NewServicePostgres(db *sqlx.DB) *ServicePostgres {
 func (s *ServicePostgres) GetServiceRecommendations(ctx context.Context, serviceID uint64) (string, error) {
 	// В реальном приложении здесь была бы проверка существования serviceID
 	if serviceID == 0 {
-		return "", sql.ErrNoRows // Используем стандартную ошибку для "не найдено"
+		return "", gorm.ErrRecordNotFound // Используем стандартную ошибку GORM для "не найдено"
 	}
 	return "Рекомендуется не принимать пищу за 4 часа до процедуры. Воду пить можно.", nil
 }

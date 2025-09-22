@@ -7,20 +7,20 @@ import (
 
 	"lk/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"gorm.io/gorm"
 )
 
 // Transactor определяет интерфейс для управления транзакциями.
 type Transactor interface {
-	WithinTransaction(ctx context.Context, fn func(tx *sqlx.Tx) error) error
+	WithinTransaction(ctx context.Context, fn func(tx *gorm.DB) error) error
 }
 
 // UserRepository определяет методы для работы с пользователями.
 type UserRepository interface {
-	CreateUser(ctx context.Context, tx *sqlx.Tx, user models.User) (uint64, error)
+	CreateUser(ctx context.Context, tx *gorm.DB, user models.User) (uint64, error)
 	GetUserByPhone(ctx context.Context, phone string) (models.User, error)
 	GetUserByID(ctx context.Context, id uint64) (models.User, error)
-	CreateUserProfile(ctx context.Context, tx *sqlx.Tx, profile models.UserProfile) (uint64, error)
+	CreateUserProfile(ctx context.Context, tx *gorm.DB, profile models.UserProfile) (uint64, error)
 	GetUserProfileByUserID(ctx context.Context, userID uint64) (models.UserProfile, error)
 	UpdateUserProfile(ctx context.Context, profile models.UserProfile) (models.UserProfile, error)
 	UpdateAvatar(ctx context.Context, userID uint64, avatarURL string) error
@@ -29,7 +29,7 @@ type UserRepository interface {
 // DoctorRepository определяет методы для работы с врачами.
 type DoctorRepository interface {
 	GetDoctorByID(ctx context.Context, id uint64) (models.Doctor, error)
-	GetDoctorsBySpecialty(ctx context.Context, specialtyID uint32, params models.PaginationParams) ([]models.Doctor, int, error)
+	GetDoctorsBySpecialty(ctx context.Context, specialtyID uint32, params models.PaginationParams) ([]models.Doctor, int64, error)
 	SearchDoctors(ctx context.Context, query string) ([]models.Doctor, error)
 	SearchDoctorsByService(ctx context.Context, serviceQuery string) ([]models.Doctor, error)
 	GetSpecialistRecommendations(ctx context.Context, doctorID uint64) (string, error)
@@ -83,7 +83,7 @@ type Repository struct {
 }
 
 // NewRepository создает новый экземпляр главного репозитория.
-func NewRepository(db *sqlx.DB) *Repository {
+func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{
 		User:         NewUserPostgres(db),
 		Doctor:       NewDoctorPostgres(db),

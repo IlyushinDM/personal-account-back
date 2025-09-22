@@ -13,7 +13,7 @@ import (
 	"lk/internal/repository"
 	"lk/internal/utils"
 
-	"github.com/jmoiron/sqlx"
+	"gorm.io/gorm"
 )
 
 var (
@@ -50,7 +50,7 @@ func (s *authService) CreateUser(ctx context.Context, phone, password, fullName,
 	if err == nil {
 		return 0, ErrUserExists
 	}
-	if !errors.Is(err, sql.ErrNoRows) {
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		log.Printf("ERROR: database error while checking user existence for phone %s: %v", phone, err)
 		return 0, fmt.Errorf("database error while checking user: %w", err)
 	}
@@ -81,7 +81,7 @@ func (s *authService) CreateUser(ctx context.Context, phone, password, fullName,
 
 	var userID uint64
 	// 4. Выполняем создание пользователя и профиля в одной транзакции.
-	err = s.transactor.WithinTransaction(ctx, func(tx *sqlx.Tx) error {
+	err = s.transactor.WithinTransaction(ctx, func(tx *gorm.DB) error {
 		user := models.User{
 			Phone:        phone,
 			PasswordHash: hashedPassword,
@@ -119,7 +119,10 @@ func (s *authService) CreateUser(ctx context.Context, phone, password, fullName,
 func (s *authService) GenerateToken(ctx context.Context, phone, password string) (string, error) {
 	user, err := s.userRepo.GetUserByPhone(ctx, phone)
 	if err != nil {
-		return "", ErrInvalidCredentials
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", ErrInvalidCredentials
+		}
+		return "", err
 	}
 
 	if err := utils.CheckPasswordHash(password, user.PasswordHash); err != nil {
