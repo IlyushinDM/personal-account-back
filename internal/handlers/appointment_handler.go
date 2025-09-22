@@ -55,7 +55,7 @@ func (h *Handler) createAppointment(c *gin.Context) {
 		AppointmentTime: input.AppointmentTime,
 		PriceAtBooking:  input.PriceAtBooking,
 		IsDMS:           input.IsDMS,
-		StatusID:        1, // 1 - это статус "Запланировано"
+		StatusID:        models.StatusScheduled,
 	}
 
 	appointmentID, err := h.services.Appointment.CreateAppointment(c.Request.Context(), appointment)

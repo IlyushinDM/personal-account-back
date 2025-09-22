@@ -128,8 +128,8 @@ func (s *appointmentService) CancelAppointment(ctx context.Context, userID, appo
 		return NewForbiddenError("user does not have permission for this action", nil)
 	}
 
-	const cancelledStatusID = 3
-	if err := s.repo.UpdateAppointmentStatus(ctx, appointmentID, cancelledStatusID); err != nil {
+	// Используем константу вместо магического числа
+	if err := s.repo.UpdateAppointmentStatus(ctx, appointmentID, models.StatusCancelledByPatient); err != nil {
 		return NewInternalServerError("failed to update appointment status", err)
 	}
 	return nil

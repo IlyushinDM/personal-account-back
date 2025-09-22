@@ -33,11 +33,9 @@ func (r *MedicalCardPostgres) GetCompletedVisits(
 ) ([]models.Appointment, int64, error) {
 	var visits []models.Appointment
 	var total int64
-	// Предполагаем, что статус "Завершено" имеет ID = 2
-	const completedStatusID = 2
 
 	query := r.db.WithContext(ctx).Model(&models.Appointment{}).
-		Where("user_id = ? AND status_id = ?", userID, completedStatusID)
+		Where("user_id = ? AND status_id = ?", userID, models.StatusCompleted)
 
 	// Считаем общее количество
 	if err := query.Count(&total).Error; err != nil {
@@ -104,10 +102,9 @@ func (r *MedicalCardPostgres) GetSummaryInfo(ctx context.Context, userID uint64)
 	err := r.db.WithContext(ctx).Model(&models.Appointment{}).
 		Select("appointments.appointment_date, CONCAT(d.last_name, ' ', d.first_name) as doctor_name").
 		Joins("JOIN medical_center.doctors d ON d.id = appointments.doctor_id").
-		Where("appointments.user_id = ? AND appointments.status_id = ?", userID, 2 /* Завершено */).
+		Where("appointments.user_id = ? AND appointments.status_id = ?", userID, models.StatusCompleted).
 		Order("appointments.appointment_date DESC").
 		First(&lastVisit).Error
-
 	if err == nil {
 		summary.RecentVisit = &models.RecentVisit{
 			Date:       lastVisit.AppointmentDate.Format("2006-01-02"),
@@ -120,7 +117,7 @@ func (r *MedicalCardPostgres) GetSummaryInfo(ctx context.Context, userID uint64)
 	// 2. Анализы в работе (предполагаем статус "В работе" имеет ID = 2)
 	var pendingAnalyses int64
 	err = r.db.WithContext(ctx).Model(&models.LabAnalysis{}).
-		Where("user_id = ? AND status_id = ?", userID, 2).
+		Where("user_id = ? AND status_id = ?", userID, models.AnalysisStatusInProgress).
 		Count(&pendingAnalyses).Error
 	if err != nil {
 		return summary, err
