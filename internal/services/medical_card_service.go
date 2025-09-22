@@ -4,26 +4,31 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
-	"os"
 
 	"lk/internal/models"
 	"lk/internal/repository"
+	"lk/internal/storage"
 
 	"gorm.io/gorm"
 )
 
-// medicalCardService реализует интерфейс MedicalCardService.
 type medicalCardService struct {
 	repo             repository.MedicalCardRepository
 	prescriptionRepo repository.PrescriptionRepository
+	storage          storage.FileStorage
 }
 
-// NewMedicalCardService создает новый сервис для работы с медкартой.
-func NewMedicalCardService(repo repository.MedicalCardRepository, prescriptionRepo repository.PrescriptionRepository) MedicalCardService {
+func NewMedicalCardService(
+	repo repository.MedicalCardRepository,
+	prescriptionRepo repository.PrescriptionRepository,
+	storage storage.FileStorage,
+) MedicalCardService {
 	return &medicalCardService{
 		repo:             repo,
 		prescriptionRepo: prescriptionRepo,
+		storage:          storage,
 	}
 }
 
@@ -86,9 +91,9 @@ func (s *medicalCardService) ArchivePrescription(ctx context.Context, userID, pr
 	return s.repo.ArchivePrescription(ctx, userID, prescriptionID)
 }
 
-// DownloadFile находит запись о файле в БД, проверяет права доступа и возвращает содержимое файла.
+// DownloadFile находит запись о файле в БД, проверяет права и скачивает из S3.
+// Возвращает поток данных, имя файла и ошибку.
 func (s *medicalCardService) DownloadFile(ctx context.Context, userID, analysisID uint64) ([]byte, string, error) {
-	// 1. Найти анализ по его ID, чтобы получить путь к файлу и проверить владельца.
 	analysis, err := s.repo.GetAnalysisByID(ctx, analysisID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -96,29 +101,32 @@ func (s *medicalCardService) DownloadFile(ctx context.Context, userID, analysisI
 		}
 		return nil, "", err
 	}
-
-	// 2. Проверка принадлежности файла пользователю
 	if analysis.UserID != userID {
 		return nil, "", ErrForbidden
 	}
-
 	if !analysis.ResultFileURL.Valid || analysis.ResultFileURL.String == "" {
 		return nil, "", errors.New("file path is not specified for this analysis")
 	}
 
-	// 3. Получить путь к файлу.
-	filePath := analysis.ResultFileURL.String
-	// Имя файла можно хранить в отдельном поле или извлекать из пути.
-	// Для простоты используем placeholder.
-	fileName := "report.pdf"
+	objectKey := analysis.ResultFileURL.String
+	fileName := analysis.ResultFileName.String
+	if fileName == "" {
+		fileName = "download" // Имя по умолчанию
+	}
 
-	// 4. Прочитать файл
-	// ! В PRODUCTION-системе здесь должен быть вызов клиента S3/MinIO, а не чтение с локального диска.
-	// ? data, err := s.s3Client.Download(filePath)
-	data, err := os.ReadFile("./static" + filePath)
+	// Скачиваем файл из MinIO
+	fileObject, err := s.storage.Download(ctx, objectKey)
 	if err != nil {
-		log.Printf("ERROR: Could not read file %s. Error: %v", "./static"+filePath, err)
-		return nil, "", fmt.Errorf("could not read file from storage")
+		log.Printf("ERROR: Could not download file from storage with key %s: %v", objectKey, err)
+		return nil, "", fmt.Errorf("could not get file from storage")
+	}
+	defer fileObject.Close()
+
+	// Читаем все байты из потока
+	data, err := io.ReadAll(fileObject)
+	if err != nil {
+		log.Printf("ERROR: Could not read file stream for key %s: %v", objectKey, err)
+		return nil, "", fmt.Errorf("could not read file stream")
 	}
 
 	return data, fileName, nil

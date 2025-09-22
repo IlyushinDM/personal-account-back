@@ -33,11 +33,6 @@ const (
 	resetCodePrefix = "reset_code:"
 )
 
-type resetCodeInfo struct {
-	Code      string
-	ExpiresAt time.Time
-}
-
 // authService - это конкретная реализация интерфейса Authorization.
 type authService struct {
 	userRepo   repository.UserRepository

@@ -26,6 +26,7 @@ import (
 	"lk/internal/repository"
 	"lk/internal/server"
 	"lk/internal/services"
+	"lk/internal/storage"
 )
 
 // @title API Личного Кабинета
@@ -71,7 +72,6 @@ func main() {
 	logger.Default().Info("логгер инициализирован")
 
 	// Инициализируем конфигурацию приложения.
-	// Приложение завершит работу, если обязательные переменные не установлены.
 	cfg := config.MustLoad()
 
 	// Устанавливаем соединение с базой данных PostgreSQL.
@@ -103,11 +103,18 @@ func main() {
 	defer redisClient.Close()
 	logger.Default().Info("соединение с Redis установлено")
 
-	// Инициализируем слои приложения (репозиторий, сервисы, обработчики).
-	// Внедряем зависимости сверху вниз (DI: Dependency Injection).
+	// Инициализируем клиент MinIO
+	storageClient, err := storage.NewMinIOClient(cfg.Minio)
+	if err != nil {
+		logger.Default().WithError(err).Fatal("не удалось подключиться к MinIO")
+	}
+	logger.Default().Info("соединение с MinIO установлено")
+
+	// Инициализируем слои приложения
 	repos := repository.NewRepository(DB, redisClient)
 	serviceDeps := services.ServiceDependencies{
 		Repos:      repos,
+		Storage:    storageClient,
 		SigningKey: cfg.Auth.JWTSecretKey,
 		TokenTTL:   cfg.Auth.TokenTTL,
 	}
