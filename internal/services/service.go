@@ -8,24 +8,18 @@ import (
 
 	"lk/internal/models"
 	"lk/internal/repository"
+	"lk/internal/storage"
 )
 
 // Authorization определяет методы для регистрации и входа пользователя.
 type Authorization interface {
-	// CreateUser создает нового пользователя и возвращает пару access/refresh токенов.
 	CreateUser(ctx context.Context, phone, password, fullName,
 		gender, birthDateStr string, cityID uint32) (map[string]string, error)
-	// GenerateToken проверяет учетные данные и возвращает пару access/refresh токенов.
 	GenerateToken(ctx context.Context, phone, password string) (map[string]string, error)
-	// ParseToken проверяет access-токен и возвращает ID пользователя.
 	ParseToken(token string) (uint64, error)
-	// RefreshToken принимает валидный refresh-токен и возвращает новую пару токенов.
 	RefreshToken(ctx context.Context, refreshToken string) (map[string]string, error)
-	// Logout инвалидирует refresh-токен на сервере.
 	Logout(ctx context.Context, refreshToken string) error
-	// ForgotPassword инициирует процесс восстановления пароля (например, отправляет код).
 	ForgotPassword(ctx context.Context, phone string) error
-	// ResetPassword сбрасывает пароль пользователя с использованием кода подтверждения.
 	ResetPassword(ctx context.Context, phone, code, newPassword string) error
 }
 
@@ -103,33 +97,31 @@ type Service struct {
 // ServiceDependencies содержит все зависимости, необходимые для создания сервисов.
 type ServiceDependencies struct {
 	Repos      *repository.Repository
+	Storage    storage.FileStorage
 	SigningKey string
 	TokenTTL   time.Duration
 }
 
 // NewService создает новый экземпляр главного сервиса, инициализируя все реализации.
 func NewService(deps ServiceDependencies) *Service {
-	// Создаем сервисы, от которых могут зависеть другие
-	prescriptionRepo := deps.Repos.Prescription
-
-	// Создаем все сервисы с их зависимостями
 	authService := NewAuthService(
 		deps.Repos.User,
-		deps.Repos.Token, // Зависимость для refresh-токенов
+		deps.Repos.Token,
+		deps.Repos.Cache,
 		deps.Repos.Transactor,
 		deps.SigningKey,
 		deps.TokenTTL,
 	)
-	prescriptionService := NewPrescriptionService(prescriptionRepo)
+	prescriptionService := NewPrescriptionService(deps.Repos.Prescription)
 
 	return &Service{
 		Authorization: authService,
-		User:          NewUserService(deps.Repos.User, deps.Repos.Appointment),
+		User:          NewUserService(deps.Repos.User, deps.Repos.Appointment, deps.Storage),
 		Doctor:        NewDoctorService(deps.Repos.Doctor),
 		Appointment:   NewAppointmentService(deps.Repos.Appointment, deps.Repos.Doctor),
 		Directory:     NewDirectoryService(deps.Repos.Directory),
 		Info:          NewInfoService(deps.Repos.Service, deps.Repos.Info),
 		Prescription:  prescriptionService,
-		MedicalCard:   NewMedicalCardService(deps.Repos.MedicalCard, prescriptionRepo),
+		MedicalCard:   NewMedicalCardService(deps.Repos.MedicalCard, deps.Repos.Prescription, deps.Storage),
 	}
 }

@@ -59,7 +59,8 @@ func (h *Handler) findSpecialists(c *gin.Context) {
 	if queryParams.Query != "" {
 		doctors, err := h.services.Doctor.SearchDoctors(ctx, queryParams.Query)
 		if err != nil {
-			newErrorResponse(c, http.StatusInternalServerError, "Failed to search doctors by query: "+err.Error())
+			newErrorResponse(c, http.StatusInternalServerError,
+				"Failed to search doctors by query: "+err.Error())
 			return
 		}
 		c.JSON(http.StatusOK, doctors)
@@ -69,7 +70,8 @@ func (h *Handler) findSpecialists(c *gin.Context) {
 	if queryParams.Service != "" {
 		doctors, err := h.services.Doctor.SearchDoctorsByService(ctx, queryParams.Service)
 		if err != nil {
-			newErrorResponse(c, http.StatusInternalServerError, "Failed to search doctors by service: "+err.Error())
+			newErrorResponse(c, http.StatusInternalServerError,
+				"Failed to search doctors by service: "+err.Error())
 			return
 		}
 		c.JSON(http.StatusOK, doctors)
@@ -84,9 +86,11 @@ func (h *Handler) findSpecialists(c *gin.Context) {
 			SortOrder: queryParams.SortOrder,
 		}
 
-		paginatedResponse, err := h.services.Doctor.GetDoctorsBySpecialty(ctx, queryParams.SpecialtyID, paginationParams)
+		paginatedResponse, err := h.services.Doctor.GetDoctorsBySpecialty(
+			ctx, queryParams.SpecialtyID, paginationParams)
 		if err != nil {
-			newErrorResponse(c, http.StatusInternalServerError, "Failed to get doctors by specialty: "+err.Error())
+			newErrorResponse(c, http.StatusInternalServerError,
+				"Failed to get doctors by specialty: "+err.Error())
 			return
 		}
 		c.JSON(http.StatusOK, paginatedResponse)
@@ -157,7 +161,8 @@ func (h *Handler) getSpecialistRecommendations(c *gin.Context) {
 			newErrorResponse(c, http.StatusNotFound, "specialist with this ID not found")
 			return
 		}
-		newErrorResponse(c, http.StatusInternalServerError, "Failed to get recommendations: "+err.Error())
+		newErrorResponse(c, http.StatusInternalServerError,
+			"Failed to get recommendations: "+err.Error())
 		return
 	}
 
@@ -186,7 +191,8 @@ func (h *Handler) getServiceRecommendations(c *gin.Context) {
 	recommendations, err := h.services.Info.GetServiceRecommendations(c.Request.Context(), id)
 	if err != nil {
 		// TODO: Здесь можно добавить обработку 404, если сервис вернет соответствующую ошибку
-		newErrorResponse(c, http.StatusInternalServerError, "Failed to get service recommendations: "+err.Error())
+		newErrorResponse(c, http.StatusInternalServerError,
+			"Failed to get service recommendations: "+err.Error())
 		return
 	}
 

@@ -17,6 +17,7 @@ type Config struct {
 	Auth       AuthConfig
 	Minio      MinioConfig
 	SMS        SMSConfig
+	Redis      RedisConfig
 }
 
 // DBConfig содержит параметры для подключения к базе данных.
@@ -50,6 +51,13 @@ type MinioConfig struct {
 type SMSConfig struct {
 	APIKey     string `yaml:"api_key" env:"SMS_API_KEY" env-required:"true"`
 	SenderName string `yaml:"sender_name" env:"SMS_SENDER_NAME" env-required:"true"`
+}
+
+// RedisConfig содержит параметры для подключения к Redis.
+type RedisConfig struct {
+	Addr     string `env:"REDIS_ADDR" env-required:"true"`
+	Password string `env:"REDIS_PASSWORD"`
+	DB       int    `env:"REDIS_DB" env-default:"0"`
 }
 
 // MustLoad загружает конфигурацию из переменных окружения.

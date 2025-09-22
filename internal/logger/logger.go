@@ -1,3 +1,4 @@
+// Package logger ...
 package logger
 
 import (
@@ -65,7 +66,7 @@ func Init(logDir string) {
 		})
 
 		if logDir != "" {
-			if err := os.MkdirAll(logDir, 0755); err != nil {
+			if err := os.MkdirAll(logDir, 0o755); err != nil {
 				logrus.Fatalf("Failed to create log directory: %v", err)
 			}
 			fileHook, err := newMultiFileHook(logDir)
@@ -304,34 +305,43 @@ type AsyncLogger struct {
 func (l *AsyncLogger) Trace(msg string) {
 	l.sendLog(logrus.TraceLevel, msg)
 }
+
 func (l *AsyncLogger) Debug(msg string) {
 	l.sendLog(logrus.DebugLevel, msg)
 }
+
 func (l *AsyncLogger) Info(msg string) {
 	l.sendLog(logrus.InfoLevel, msg)
 }
+
 func (l *AsyncLogger) Warn(msg string) {
 	l.sendLog(logrus.WarnLevel, msg)
 }
+
 func (l *AsyncLogger) Error(msg string) {
 	l.sendLog(logrus.ErrorLevel, msg)
 }
+
 func (l *AsyncLogger) Fatal(msg string) {
 	l.sendLog(logrus.FatalLevel, msg)
 	Sync()
 	os.Exit(1)
 }
+
 func (l *AsyncLogger) Panic(msg string) {
 	l.sendLog(logrus.PanicLevel, msg)
 	Sync()
 	panic(msg)
 }
+
 func (l *AsyncLogger) WithError(err error) *AsyncLogger {
 	return &AsyncLogger{entry: l.entry.WithError(err)}
 }
+
 func (l *AsyncLogger) WithField(k string, v interface{}) *AsyncLogger {
 	return &AsyncLogger{entry: l.entry.WithField(k, v)}
 }
+
 func (l *AsyncLogger) WithFields(fields logrus.Fields) *AsyncLogger {
 	return &AsyncLogger{entry: l.entry.WithFields(fields)}
 }
@@ -410,7 +420,7 @@ func newMultiFileHook(logDir string) (*multiFileHook, error) {
 	writers := make(map[logrus.Level]io.Writer)
 
 	allFilePath := filepath.Join(logDir, "all.log")
-	allFile, err := os.OpenFile(allFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	allFile, err := os.OpenFile(allFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open all.log: %w", err)
 	}
@@ -418,7 +428,7 @@ func newMultiFileHook(logDir string) (*multiFileHook, error) {
 	levels := []logrus.Level{logrus.DebugLevel, logrus.InfoLevel, logrus.WarnLevel, logrus.ErrorLevel, logrus.FatalLevel, logrus.PanicLevel}
 	for _, level := range levels {
 		path := filepath.Join(logDir, fmt.Sprintf("%s.log", level.String()))
-		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open log file for level %s: %w", level, err)
 		}
