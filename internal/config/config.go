@@ -11,13 +11,14 @@ import (
 
 // Config содержит все конфигурационные параметры приложения.
 type Config struct {
-	Env        string `yaml:"env" env:"ENV" env-default:"local"`
-	Database   DBConfig
-	HTTPServer HTTPServerConfig
-	Auth       AuthConfig
-	Minio      MinioConfig
-	SMS        SMSConfig
-	Redis      RedisConfig
+	Env            string `yaml:"env" env:"ENV" env-default:"local"`
+	ClinicTimezone string `yaml:"clinic_timezone" env:"CLINIC_TIMEZONE" env-default:"UTC"`
+	Database       DBConfig
+	HTTPServer     HTTPServerConfig
+	Auth           AuthConfig
+	Minio          MinioConfig
+	SMS            SMSConfig
+	Redis          RedisConfig
 }
 
 // DBConfig содержит параметры для подключения к базе данных.

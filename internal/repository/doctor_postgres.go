@@ -87,7 +87,6 @@ func (r *DoctorPostgres) SearchDoctors(ctx context.Context, searchQuery string) 
 	var doctors []models.Doctor
 
 	// Преобразуем поисковый запрос в формат, понятный plainto_tsquery
-	// Заменяем пробелы на оператор 'И' (&) для поиска всех слов
 	tsQuery := strings.ReplaceAll(strings.TrimSpace(searchQuery), " ", " & ")
 
 	// Ранжируем результаты по релевантности

@@ -25,15 +25,19 @@ var (
 type appointmentService struct {
 	repo       repository.AppointmentRepository
 	doctorRepo repository.DoctorRepository
+	location   *time.Location
 }
 
 // NewAppointmentService создает новый сервис для управления записями на прием.
 func NewAppointmentService(
-	repo repository.AppointmentRepository, doctorRepo repository.DoctorRepository,
+	repo repository.AppointmentRepository,
+	doctorRepo repository.DoctorRepository,
+	location *time.Location,
 ) AppointmentService {
 	return &appointmentService{
 		repo:       repo,
 		doctorRepo: doctorRepo,
+		location:   location,
 	}
 }
 
@@ -144,13 +148,13 @@ func (s *appointmentService) GetAvailableSlots(ctx context.Context, doctorID, se
 
 	// 5. Вычислить доступные слоты
 	var availableSlots []string
-	loc, _ := time.LoadLocation("UTC") // или другой нужный
-	startTime := time.Date(date.Year(), date.Month(), date.Day(), schedule.StartTime.Hour(),
-		schedule.StartTime.Minute(), 0, 0, loc)
-	endTime := time.Date(date.Year(), date.Month(), date.Day(), schedule.EndTime.Hour(),
-		schedule.EndTime.Minute(), 0, 0, loc)
 
-	// Итерируемся по рабочему времени с шагом, равным длительности запрашиваемой услуги
+	startTime := time.Date(date.Year(), date.Month(), date.Day(), schedule.StartTime.Hour(),
+		schedule.StartTime.Minute(), 0, 0, s.location)
+	endTime := time.Date(date.Year(), date.Month(), date.Day(), schedule.EndTime.Hour(),
+		schedule.EndTime.Minute(), 0, 0, s.location)
+
+	// Итерируемся по рабочему времени
 	for slotStart := startTime; slotStart.Add(slotStep).Before(endTime) ||
 		slotStart.Add(slotStep).Equal(endTime); slotStart = slotStart.Add(slotStep) {
 		slotEnd := slotStart.Add(slotStep)
@@ -160,12 +164,10 @@ func (s *appointmentService) GetAvailableSlots(ctx context.Context, doctorID, se
 		for _, app := range existingAppointments {
 			appTime, _ := time.Parse("15:04", app.AppointmentTime)
 			appStart := time.Date(date.Year(), date.Month(), date.Day(), appTime.Hour(),
-				appTime.Minute(), 0, 0, loc)
+				appTime.Minute(), 0, 0, s.location)
 
-			// Берем длительность из мапы, а не из БД
 			appEnd := appStart.Add(serviceDurations[app.ServiceID])
 
-			// Проверка пересечения интервалов: (StartA < EndB) and (EndA > StartB)
 			if slotStart.Before(appEnd) && slotEnd.After(appStart) {
 				isAvailable = false
 				break

@@ -98,6 +98,7 @@ type Service struct {
 type ServiceDependencies struct {
 	Repos      *repository.Repository
 	Storage    storage.FileStorage
+	Location   *time.Location
 	SigningKey string
 	TokenTTL   time.Duration
 }
@@ -112,16 +113,15 @@ func NewService(deps ServiceDependencies) *Service {
 		deps.SigningKey,
 		deps.TokenTTL,
 	)
-	prescriptionService := NewPrescriptionService(deps.Repos.Prescription)
 
 	return &Service{
 		Authorization: authService,
 		User:          NewUserService(deps.Repos.User, deps.Repos.Appointment, deps.Storage),
 		Doctor:        NewDoctorService(deps.Repos.Doctor),
-		Appointment:   NewAppointmentService(deps.Repos.Appointment, deps.Repos.Doctor),
+		Appointment:   NewAppointmentService(deps.Repos.Appointment, deps.Repos.Doctor, deps.Location),
 		Directory:     NewDirectoryService(deps.Repos.Directory),
 		Info:          NewInfoService(deps.Repos.Service, deps.Repos.Info),
-		Prescription:  prescriptionService,
+		Prescription:  NewPrescriptionService(deps.Repos.Prescription),
 		MedicalCard:   NewMedicalCardService(deps.Repos.MedicalCard, deps.Repos.Prescription, deps.Storage),
 	}
 }
