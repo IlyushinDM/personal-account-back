@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
@@ -74,28 +75,43 @@ func main() {
 	cfg := config.MustLoad()
 
 	// Устанавливаем соединение с базой данных PostgreSQL.
-	gormDB, err := gorm.Open(postgres.Open(cfg.Database.URL), &gorm.Config{
+	DB, err := gorm.Open(postgres.Open(cfg.Database.URL), &gorm.Config{
 		Logger: logger.NewGORMLogger(),
 	})
 	if err != nil {
 		logger.Default().WithError(err).Fatal("не удалось подключиться к базе данных")
 	}
 
-	db, err := gormDB.DB()
+	db, err := DB.DB()
 	if err != nil {
 		logger.Default().WithError(err).Fatal("не удалось получить *sql.DB из gorm")
 	}
 	defer db.Close()
 	logger.Default().Info("соединение с базой данных установлено")
 
+	// Инициализируем клиент Redis
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     cfg.Redis.Addr,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
+
+	// Проверяем соединение с Redis
+	if _, err := redisClient.Ping(context.Background()).Result(); err != nil {
+		logger.Default().WithError(err).Fatal("не удалось подключиться к Redis")
+	}
+	defer redisClient.Close()
+	logger.Default().Info("соединение с Redis установлено")
+
 	// Инициализируем слои приложения (репозиторий, сервисы, обработчики).
 	// Внедряем зависимости сверху вниз (DI: Dependency Injection).
-	repos := repository.NewRepository(gormDB)
+	repos := repository.NewRepository(DB, redisClient)
 	serviceDeps := services.ServiceDependencies{
 		Repos:      repos,
 		SigningKey: cfg.Auth.JWTSecretKey,
 		TokenTTL:   cfg.Auth.TokenTTL,
 	}
+
 	services := services.NewService(serviceDeps)
 	handlers := handlers.NewHandler(services)
 	logger.Default().Info("слои приложения инициализированы")

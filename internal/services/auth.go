@@ -10,7 +10,6 @@ import (
 	"log"
 	"math/rand"
 	"strings"
-	"sync"
 	"time"
 
 	"lk/internal/models"
@@ -31,12 +30,7 @@ var (
 const (
 	refreshTokenTTL = 72 * time.Hour
 	resetCodeTTL    = 5 * time.Minute
-)
-
-// Mock-хранилище для кодов сброса пароля (в реальном приложении использовать Redis)
-var (
-	resetCodes   = make(map[string]resetCodeInfo)
-	resetCodesMu sync.Mutex
+	resetCodePrefix = "reset_code:"
 )
 
 type resetCodeInfo struct {
@@ -48,6 +42,7 @@ type resetCodeInfo struct {
 type authService struct {
 	userRepo   repository.UserRepository
 	tokenRepo  repository.TokenRepository
+	cacheRepo  repository.CacheRepository
 	transactor repository.Transactor
 	signingKey string
 	tokenTTL   time.Duration
@@ -57,6 +52,7 @@ type authService struct {
 func NewAuthService(
 	userRepo repository.UserRepository,
 	tokenRepo repository.TokenRepository,
+	cacheRepo repository.CacheRepository,
 	transactor repository.Transactor,
 	signingKey string,
 	tokenTTL time.Duration,
@@ -64,6 +60,7 @@ func NewAuthService(
 	return &authService{
 		userRepo:   userRepo,
 		tokenRepo:  tokenRepo,
+		cacheRepo:  cacheRepo,
 		transactor: transactor,
 		signingKey: signingKey,
 		tokenTTL:   tokenTTL,
@@ -221,21 +218,18 @@ func (s *authService) Logout(ctx context.Context, refreshToken string) error {
 // ForgotPassword инициирует сброс пароля.
 func (s *authService) ForgotPassword(ctx context.Context, phone string) error {
 	if _, err := s.userRepo.GetUserByPhone(ctx, phone); err != nil {
-		// Не возвращаем ошибку, чтобы не раскрывать, существует ли пользователь
 		log.Printf("INFO: Password reset requested for non-existent phone: %s", phone)
 		return nil
 	}
 
-	// Генерируем код
 	code := fmt.Sprintf("%06d", rand.Intn(1000000))
+	key := resetCodePrefix + phone
 
-	// Сохраняем код (mock)
-	resetCodesMu.Lock()
-	resetCodes[phone] = resetCodeInfo{
-		Code:      code,
-		ExpiresAt: time.Now().Add(resetCodeTTL),
+	// Сохраняем код в Redis
+	if err := s.cacheRepo.Set(ctx, key, code, resetCodeTTL); err != nil {
+		log.Printf("ERROR: Failed to set reset code to redis for phone %s: %v", phone, err)
+		return fmt.Errorf("internal server error")
 	}
-	resetCodesMu.Unlock()
 
 	// Имитируем отправку SMS
 	log.Printf("!!! MOCK SMS !!! Password reset code for user %s is: %s", phone, code)
@@ -245,11 +239,19 @@ func (s *authService) ForgotPassword(ctx context.Context, phone string) error {
 
 // ResetPassword устанавливает новый пароль с использованием кода.
 func (s *authService) ResetPassword(ctx context.Context, phone, code, newPassword string) error {
-	resetCodesMu.Lock()
-	info, ok := resetCodes[phone]
-	defer resetCodesMu.Unlock()
+	key := resetCodePrefix + phone
 
-	if !ok || info.Code != code || time.Now().After(info.ExpiresAt) {
+	// Получаем код из Redis
+	storedCode, err := s.cacheRepo.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return ErrCodeMismatch
+		}
+		log.Printf("ERROR: Failed to get reset code from redis for phone %s: %v", phone, err)
+		return fmt.Errorf("internal server error")
+	}
+
+	if storedCode != code {
 		return ErrCodeMismatch
 	}
 
@@ -267,8 +269,8 @@ func (s *authService) ResetPassword(ctx context.Context, phone, code, newPasswor
 		return err
 	}
 
-	// Удаляем использованный код
-	delete(resetCodes, phone)
+	// Удаляем использованный код из Redis
+	_ = s.cacheRepo.Delete(ctx, key)
 
 	return nil
 }

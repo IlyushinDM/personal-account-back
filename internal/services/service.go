@@ -115,7 +115,8 @@ func NewService(deps ServiceDependencies) *Service {
 	// Создаем все сервисы с их зависимостями
 	authService := NewAuthService(
 		deps.Repos.User,
-		deps.Repos.Token, // Зависимость для refresh-токенов
+		deps.Repos.Token,
+		deps.Repos.Cache,
 		deps.Repos.Transactor,
 		deps.SigningKey,
 		deps.TokenTTL,

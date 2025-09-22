@@ -7,6 +7,7 @@ import (
 
 	"lk/internal/models"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -95,6 +96,13 @@ type MedicalCardRepository interface {
 	GetAnalysisByID(ctx context.Context, analysisID uint64) (models.LabAnalysis, error)
 }
 
+// CacheRepository определяет интерфейс для работы с key-value хранилищем (кэшем).
+type CacheRepository interface {
+	Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error
+	Get(ctx context.Context, key string) (string, error)
+	Delete(ctx context.Context, key string) error
+}
+
 // Repository - это контейнер для всех репозиториев приложения.
 type Repository struct {
 	User         UserRepository
@@ -106,11 +114,12 @@ type Repository struct {
 	Prescription PrescriptionRepository
 	Service      ServiceRepository
 	MedicalCard  MedicalCardRepository
+	Cache        CacheRepository
 	Transactor
 }
 
 // NewRepository создает новый экземпляр главного репозитория.
-func NewRepository(db *gorm.DB) *Repository {
+func NewRepository(db *gorm.DB, redisClient *redis.Client) *Repository {
 	return &Repository{
 		User:         NewUserPostgres(db),
 		Token:        NewTokenPostgres(db),
@@ -121,6 +130,7 @@ func NewRepository(db *gorm.DB) *Repository {
 		Prescription: NewPrescriptionPostgres(db),
 		Service:      NewServicePostgres(db),
 		MedicalCard:  NewMedicalCardPostgres(db),
+		Cache:        NewCacheRedis(redisClient),
 		Transactor:   NewTransactor(db),
 	}
 }
