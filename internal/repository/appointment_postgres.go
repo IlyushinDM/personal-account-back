@@ -46,6 +46,16 @@ func (r *AppointmentPostgres) GetServiceDurationMinutes(ctx context.Context, ser
 	return service.DurationMinutes, err
 }
 
+// GetServicesByIDs получает информацию о нескольких услугах одним запросом.
+func (r *AppointmentPostgres) GetServicesByIDs(ctx context.Context, serviceIDs []uint64) ([]models.Service, error) {
+	var services []models.Service
+	if len(serviceIDs) == 0 {
+		return services, nil // Возвращаем пустой слайс, если нет ID для поиска
+	}
+	err := r.db.WithContext(ctx).Where("id IN ?", serviceIDs).Find(&services).Error
+	return services, err
+}
+
 // GetAvailableDatesForMonth возвращает дни, в которые у врача есть расписание.
 func (r *AppointmentPostgres) GetAvailableDatesForMonth(
 	ctx context.Context, doctorID uint64, month time.Time,

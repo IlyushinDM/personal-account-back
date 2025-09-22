@@ -46,7 +46,6 @@ type DoctorRepository interface {
 }
 
 // AppointmentRepository определяет методы для работы с записями на прием.
-// ИНТЕРФЕЙС ОБНОВЛЕН
 type AppointmentRepository interface {
 	CreateAppointment(ctx context.Context, appointment models.Appointment) (uint64, error)
 	GetAppointmentsByUserID(ctx context.Context, userID uint64) ([]models.Appointment, error)
@@ -54,11 +53,12 @@ type AppointmentRepository interface {
 	GetAppointmentByID(ctx context.Context, appointmentID uint64) (models.Appointment, error)
 	UpdateAppointmentStatus(ctx context.Context, appointmentID uint64, statusID uint32) error
 
-	// Новые методы для работы с реальным расписанием
+	// Методы для работы с реальным расписанием
 	GetAvailableDatesForMonth(ctx context.Context, doctorID uint64, month time.Time) ([]time.Time, error)
 	GetDoctorScheduleForDate(ctx context.Context, doctorID uint64, date time.Time) (models.Schedule, error)
 	GetServiceDurationMinutes(ctx context.Context, serviceID uint64) (uint16, error)
 	GetAppointmentsByDoctorAndDate(ctx context.Context, doctorID uint64, date time.Time) ([]models.Appointment, error)
+	GetServicesByIDs(ctx context.Context, serviceIDs []uint64) ([]models.Service, error)
 }
 
 // DirectoryRepository определяет методы для работы со справочниками.
