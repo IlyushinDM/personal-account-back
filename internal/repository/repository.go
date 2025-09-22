@@ -24,6 +24,14 @@ type UserRepository interface {
 	GetUserProfileByUserID(ctx context.Context, userID uint64) (models.UserProfile, error)
 	UpdateUserProfile(ctx context.Context, profile models.UserProfile) (models.UserProfile, error)
 	UpdateAvatar(ctx context.Context, userID uint64, avatarURL string) error
+	UpdatePassword(ctx context.Context, userID uint64, newPasswordHash string) error
+}
+
+// TokenRepository определяет методы для работы с refresh-токенами.
+type TokenRepository interface {
+	Create(ctx context.Context, token models.RefreshToken) error
+	GetByUserID(ctx context.Context, userID uint64) (models.RefreshToken, error)
+	Delete(ctx context.Context, userID uint64) error
 }
 
 // DoctorRepository определяет методы для работы с врачами.
@@ -71,9 +79,20 @@ type ServiceRepository interface {
 	GetServiceRecommendations(ctx context.Context, serviceID uint64) (string, error)
 }
 
+// MedicalCardRepository определяет методы для работы с данными медкарты.
+type MedicalCardRepository interface {
+	GetCompletedVisits(ctx context.Context, userID uint64, params models.PaginationParams) (
+		[]models.Appointment, int64, error)
+	GetAnalysesByUserID(ctx context.Context, userID uint64, status *string) ([]models.LabAnalysis, error)
+	GetArchivedPrescriptionsByUserID(ctx context.Context, userID uint64) ([]models.Prescription, error)
+	GetSummaryInfo(ctx context.Context, userID uint64) (models.MedicalCardSummary, error)
+	ArchivePrescription(ctx context.Context, userID, prescriptionID uint64) error
+}
+
 // Repository - это контейнер для всех репозиториев приложения.
 type Repository struct {
 	User         UserRepository
+	Token        TokenRepository
 	Doctor       DoctorRepository
 	Appointment  AppointmentRepository
 	Directory    DirectoryRepository
@@ -88,6 +107,7 @@ type Repository struct {
 func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{
 		User:         NewUserPostgres(db),
+		Token:        NewTokenPostgres(db),
 		Doctor:       NewDoctorPostgres(db),
 		Appointment:  NewAppointmentPostgres(db),
 		Directory:    NewDirectoryPostgres(db),
@@ -97,19 +117,4 @@ func NewRepository(db *gorm.DB) *Repository {
 		MedicalCard:  NewMedicalCardPostgres(db),
 		Transactor:   NewTransactor(db),
 	}
-}
-
-// MedicalCardRepository определяет методы для работы с данными медкарты.
-type MedicalCardRepository interface {
-	// FR-4.1
-	GetCompletedVisits(ctx context.Context, userID uint64, params models.PaginationParams) (
-		[]models.Appointment, int64, error)
-	// FR-4.2
-	GetAnalysesByUserID(ctx context.Context, userID uint64, status *string) ([]models.LabAnalysis, error)
-	// FR-4.3
-	GetArchivedPrescriptionsByUserID(ctx context.Context, userID uint64) ([]models.Prescription, error)
-	// FR-4.6
-	GetSummaryInfo(ctx context.Context, userID uint64) (models.MedicalCardSummary, error)
-	// FR-4.7
-	ArchivePrescription(ctx context.Context, userID, prescriptionID uint64) error
 }

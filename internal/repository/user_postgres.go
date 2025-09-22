@@ -76,7 +76,8 @@ func (r *UserPostgres) UpdateUserProfile(ctx context.Context, profile models.Use
 		return r.GetUserProfileByUserID(ctx, profile.UserID)
 	}
 
-	result := r.db.WithContext(ctx).Model(&models.UserProfile{}).Where("user_id = ?", profile.UserID).Updates(updateData)
+	result := r.db.WithContext(ctx).Model(&models.UserProfile{}).Where(
+		"user_id = ?", profile.UserID).Updates(updateData)
 	if result.Error != nil {
 		return models.UserProfile{}, result.Error
 	}
@@ -89,12 +90,26 @@ func (r *UserPostgres) UpdateUserProfile(ctx context.Context, profile models.Use
 
 // UpdateAvatar обновляет URL аватара для профиля пользователя.
 func (r *UserPostgres) UpdateAvatar(ctx context.Context, userID uint64, avatarURL string) error {
-	result := r.db.WithContext(ctx).Model(&models.UserProfile{}).Where("user_id = ?", userID).Update("avatar_url", avatarURL)
+	result := r.db.WithContext(ctx).Model(&models.UserProfile{}).Where(
+		"user_id = ?", userID).Update("avatar_url", avatarURL)
 	if result.Error != nil {
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("user profile with user_id %d not found for avatar update", userID)
+	}
+	return nil
+}
+
+// UpdatePassword обновляет хеш пароля пользователя.
+func (r *UserPostgres) UpdatePassword(ctx context.Context, userID uint64, newPasswordHash string) error {
+	result := r.db.WithContext(ctx).Model(&models.User{}).Where(
+		"id = ?", userID).Update("password_hash", newPasswordHash)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("user with id %d not found for password update", userID)
 	}
 	return nil
 }

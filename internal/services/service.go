@@ -12,10 +12,21 @@ import (
 
 // Authorization определяет методы для регистрации и входа пользователя.
 type Authorization interface {
+	// CreateUser создает нового пользователя и возвращает пару access/refresh токенов.
 	CreateUser(ctx context.Context, phone, password, fullName,
-		gender, birthDateStr string, cityID uint32) (uint64, error)
-	GenerateToken(ctx context.Context, phone, password string) (string, error)
+		gender, birthDateStr string, cityID uint32) (map[string]string, error)
+	// GenerateToken проверяет учетные данные и возвращает пару access/refresh токенов.
+	GenerateToken(ctx context.Context, phone, password string) (map[string]string, error)
+	// ParseToken проверяет access-токен и возвращает ID пользователя.
 	ParseToken(token string) (uint64, error)
+	// RefreshToken принимает валидный refresh-токен и возвращает новую пару токенов.
+	RefreshToken(ctx context.Context, refreshToken string) (map[string]string, error)
+	// Logout инвалидирует refresh-токен на сервере.
+	Logout(ctx context.Context, refreshToken string) error
+	// ForgotPassword инициирует процесс восстановления пароля (например, отправляет код).
+	ForgotPassword(ctx context.Context, phone string) error
+	// ResetPassword сбрасывает пароль пользователя с использованием кода подтверждения.
+	ResetPassword(ctx context.Context, phone, code, newPassword string) error
 }
 
 // UserService определяет методы для работы с данными пользователя.
@@ -28,8 +39,7 @@ type UserService interface {
 // DoctorService определяет методы для работы с информацией о врачах.
 type DoctorService interface {
 	GetDoctorByID(ctx context.Context, doctorID uint64) (models.Doctor, error)
-	GetDoctorsBySpecialty(
-		ctx context.Context, specialtyID uint32, params models.PaginationParams) (
+	GetDoctorsBySpecialty(ctx context.Context, specialtyID uint32, params models.PaginationParams) (
 		models.PaginatedDoctorsResponse, error)
 	SearchDoctors(ctx context.Context, query string) ([]models.Doctor, error)
 	SearchDoctorsByService(ctx context.Context, serviceQuery string) ([]models.Doctor, error)
@@ -99,18 +109,27 @@ type ServiceDependencies struct {
 
 // NewService создает новый экземпляр главного сервиса, инициализируя все реализации.
 func NewService(deps ServiceDependencies) *Service {
-	// Создаем сервисы, от которых зависят другие сервисы
-	prescriptionService := NewPrescriptionService(deps.Repos.Prescription)
+	// Создаем сервисы, от которых могут зависеть другие
+	prescriptionRepo := deps.Repos.Prescription
+
+	// Создаем все сервисы с их зависимостями
+	authService := NewAuthService(
+		deps.Repos.User,
+		deps.Repos.Token, // Зависимость для refresh-токенов
+		deps.Repos.Transactor,
+		deps.SigningKey,
+		deps.TokenTTL,
+	)
+	prescriptionService := NewPrescriptionService(prescriptionRepo)
 
 	return &Service{
-		Authorization: NewAuthService(deps.Repos.User, deps.Repos.Transactor,
-			deps.SigningKey, deps.TokenTTL),
-		User:         NewUserService(deps.Repos.User, deps.Repos.Appointment),
-		Doctor:       NewDoctorService(deps.Repos.Doctor),
-		Appointment:  NewAppointmentService(deps.Repos.Appointment, deps.Repos.Doctor),
-		Directory:    NewDirectoryService(deps.Repos.Directory),
-		Info:         NewInfoService(deps.Repos.Service, deps.Repos.Info),
-		Prescription: prescriptionService,
-		MedicalCard:  NewMedicalCardService(deps.Repos.MedicalCard, deps.Repos.Prescription),
+		Authorization: authService,
+		User:          NewUserService(deps.Repos.User, deps.Repos.Appointment),
+		Doctor:        NewDoctorService(deps.Repos.Doctor),
+		Appointment:   NewAppointmentService(deps.Repos.Appointment, deps.Repos.Doctor),
+		Directory:     NewDirectoryService(deps.Repos.Directory),
+		Info:          NewInfoService(deps.Repos.Service, deps.Repos.Info),
+		Prescription:  prescriptionService,
+		MedicalCard:   NewMedicalCardService(deps.Repos.MedicalCard, prescriptionRepo),
 	}
 }

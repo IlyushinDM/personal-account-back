@@ -44,13 +44,16 @@ func (h *Handler) InitRoutes() *gin.Engine {
 		{
 			auth.POST("/register", h.signUp)
 			auth.POST("/login", h.signIn)
-			// TODO: Реализовать эндпоинты FR-1.3, FR-1.4, FR-1.5, FR-1.6, FR-1.7
-			// auth.GET("/gosuslugi", h.gosuslugiLogin)
-			// auth.GET("/gosuslugi/callback", h.gosuslugiCallback)
-			// auth.POST("/forgot-password", h.forgotPassword)
-			// auth.POST("/reset-password", h.resetPassword)
-			// auth.POST("/refresh", h.refreshToken)
-			// auth.POST("/logout", h.logout)
+
+			// Эндпоинты для refresh токенов и восстановления пароля
+			auth.POST("/refresh", h.refresh)
+			auth.POST("/logout", h.logout)
+			auth.POST("/forgot-password", h.forgotPassword)
+			auth.POST("/reset-password", h.resetPassword)
+
+			// Заглушки для Госуслуг
+			auth.GET("/gosuslugi", h.gosuslugiLogin)
+			auth.POST("/gosuslugi/callback", h.gosuslugiCallback)
 		}
 
 		// Защищенные эндпоинты, требующие валидного JWT
