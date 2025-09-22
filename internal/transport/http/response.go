@@ -1,4 +1,4 @@
-package handlers
+package http
 
 // errorResponse - структура для ответа с ошибкой.
 type errorResponse struct {

@@ -1,7 +1,7 @@
-// Package handlers определяет HTTP-слой приложения (API).
+// Package http определяет HTTP-слой приложения (API).
 // Он отвечает за обработку входящих запросов, вызов соответствующих сервисов
 // и форматирование ответов для отправки клиенту.
-package handlers
+package http
 
 import (
 	"lk/internal/repository"
