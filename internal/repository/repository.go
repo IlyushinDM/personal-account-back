@@ -29,7 +29,8 @@ type UserRepository interface {
 // DoctorRepository определяет методы для работы с врачами.
 type DoctorRepository interface {
 	GetDoctorByID(ctx context.Context, id uint64) (models.Doctor, error)
-	GetDoctorsBySpecialty(ctx context.Context, specialtyID uint32, params models.PaginationParams) ([]models.Doctor, int64, error)
+	GetDoctorsBySpecialty(ctx context.Context, specialtyID uint32, params models.PaginationParams) (
+		[]models.Doctor, int64, error)
 	SearchDoctors(ctx context.Context, query string) ([]models.Doctor, error)
 	SearchDoctorsByService(ctx context.Context, serviceQuery string) ([]models.Doctor, error)
 	GetSpecialistRecommendations(ctx context.Context, doctorID uint64) (string, error)
@@ -79,6 +80,7 @@ type Repository struct {
 	Info         InfoRepository
 	Prescription PrescriptionRepository
 	Service      ServiceRepository
+	MedicalCard  MedicalCardRepository
 	Transactor
 }
 
@@ -92,6 +94,22 @@ func NewRepository(db *gorm.DB) *Repository {
 		Info:         NewInfoPostgres(db),
 		Prescription: NewPrescriptionPostgres(db),
 		Service:      NewServicePostgres(db),
+		MedicalCard:  NewMedicalCardPostgres(db),
 		Transactor:   NewTransactor(db),
 	}
+}
+
+// MedicalCardRepository определяет методы для работы с данными медкарты.
+type MedicalCardRepository interface {
+	// FR-4.1
+	GetCompletedVisits(ctx context.Context, userID uint64, params models.PaginationParams) (
+		[]models.Appointment, int64, error)
+	// FR-4.2
+	GetAnalysesByUserID(ctx context.Context, userID uint64, status *string) ([]models.LabAnalysis, error)
+	// FR-4.3
+	GetArchivedPrescriptionsByUserID(ctx context.Context, userID uint64) ([]models.Prescription, error)
+	// FR-4.6
+	GetSummaryInfo(ctx context.Context, userID uint64) (models.MedicalCardSummary, error)
+	// FR-4.7
+	ArchivePrescription(ctx context.Context, userID, prescriptionID uint64) error
 }

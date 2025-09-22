@@ -28,7 +28,9 @@ type UserService interface {
 // DoctorService определяет методы для работы с информацией о врачах.
 type DoctorService interface {
 	GetDoctorByID(ctx context.Context, doctorID uint64) (models.Doctor, error)
-	GetDoctorsBySpecialty(ctx context.Context, specialtyID uint32, params models.PaginationParams) (models.PaginatedDoctorsResponse, error)
+	GetDoctorsBySpecialty(
+		ctx context.Context, specialtyID uint32, params models.PaginationParams) (
+		models.PaginatedDoctorsResponse, error)
 	SearchDoctors(ctx context.Context, query string) ([]models.Doctor, error)
 	SearchDoctorsByService(ctx context.Context, serviceQuery string) ([]models.Doctor, error)
 	GetSpecialistRecommendations(ctx context.Context, doctorID uint64) (models.Recommendation, error)
@@ -45,8 +47,10 @@ type AppointmentService interface {
 	CreateAppointment(ctx context.Context, appointment models.Appointment) (uint64, error)
 	GetUserAppointments(ctx context.Context, userID uint64) ([]models.Appointment, error)
 	CancelAppointment(ctx context.Context, userID, appointmentID uint64) error
-	GetAvailableDates(ctx context.Context, doctorID, serviceID uint64, month string) (models.AvailableDatesResponse, error)
-	GetAvailableSlots(ctx context.Context, doctorID, serviceID uint64, date string) (models.AvailableSlotsResponse, error)
+	GetAvailableDates(ctx context.Context, doctorID, serviceID uint64, month string) (
+		models.AvailableDatesResponse, error)
+	GetAvailableSlots(ctx context.Context, doctorID, serviceID uint64, date string) (
+		models.AvailableSlotsResponse, error)
 	GetUpcomingForUser(ctx context.Context, userID uint64) ([]models.Appointment, error)
 }
 
@@ -63,6 +67,17 @@ type PrescriptionService interface {
 	ArchiveForUser(ctx context.Context, userID, prescriptionID uint64) error
 }
 
+// MedicalCardService определяет методы для работы с медкартой.
+type MedicalCardService interface {
+	GetVisits(ctx context.Context, userID uint64, params models.PaginationParams) (
+		models.PaginatedVisitsResponse, error)
+	GetAnalyses(ctx context.Context, userID uint64, status *string) ([]models.LabAnalysis, error)
+	GetArchivedPrescriptions(ctx context.Context, userID uint64) ([]models.Prescription, error)
+	GetSummary(ctx context.Context, userID uint64) (models.MedicalCardSummary, error)
+	ArchivePrescription(ctx context.Context, userID, prescriptionID uint64) error
+	DownloadFile(ctx context.Context, userID, fileID uint64) ([]byte, string, error)
+}
+
 // Service - это контейнер для всех сервисов приложения.
 type Service struct {
 	Authorization Authorization
@@ -72,6 +87,7 @@ type Service struct {
 	Directory     DirectoryService
 	Info          InfoService
 	Prescription  PrescriptionService
+	MedicalCard   MedicalCardService
 }
 
 // ServiceDependencies содержит все зависимости, необходимые для создания сервисов.
@@ -83,13 +99,18 @@ type ServiceDependencies struct {
 
 // NewService создает новый экземпляр главного сервиса, инициализируя все реализации.
 func NewService(deps ServiceDependencies) *Service {
+	// Создаем сервисы, от которых зависят другие сервисы
+	prescriptionService := NewPrescriptionService(deps.Repos.Prescription)
+
 	return &Service{
-		Authorization: NewAuthService(deps.Repos.User, deps.Repos.Transactor, deps.SigningKey, deps.TokenTTL),
-		User:          NewUserService(deps.Repos.User, deps.Repos.Appointment),
-		Doctor:        NewDoctorService(deps.Repos.Doctor),
-		Appointment:   NewAppointmentService(deps.Repos.Appointment, deps.Repos.Doctor),
-		Directory:     NewDirectoryService(deps.Repos.Directory),
-		Info:          NewInfoService(deps.Repos.Service, deps.Repos.Info),
-		Prescription:  NewPrescriptionService(deps.Repos.Prescription),
+		Authorization: NewAuthService(deps.Repos.User, deps.Repos.Transactor,
+			deps.SigningKey, deps.TokenTTL),
+		User:         NewUserService(deps.Repos.User, deps.Repos.Appointment),
+		Doctor:       NewDoctorService(deps.Repos.Doctor),
+		Appointment:  NewAppointmentService(deps.Repos.Appointment, deps.Repos.Doctor),
+		Directory:    NewDirectoryService(deps.Repos.Directory),
+		Info:         NewInfoService(deps.Repos.Service, deps.Repos.Info),
+		Prescription: prescriptionService,
+		MedicalCard:  NewMedicalCardService(deps.Repos.MedicalCard, deps.Repos.Prescription),
 	}
 }

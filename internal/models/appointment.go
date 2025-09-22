@@ -17,12 +17,16 @@ type Appointment struct {
 	StatusID             uint32         `db:"status_id" json:"statusID"`
 	PriceAtBooking       float64        `db:"price_at_booking" json:"priceAtBooking"`
 	IsDMS                bool           `db:"is_dms" json:"isDMS"`
-	PreVisitInstructions sql.NullString `db:"pre_visit_instructions" json:"preVisitInstructions,omitempty"`
-	Diagnosis            sql.NullString `db:"diagnosis" json:"diagnosis,omitempty"`
-	Recommendations      sql.NullString `db:"recommendations" json:"recommendations,omitempty"`
-	ResultFileURL        sql.NullString `db:"result_file_url" json:"resultFileURL,omitempty"`
+	PreVisitInstructions sql.NullString `db:"pre_visit_instructions" json:"preVisitInstructions,omitzero"`
+	Diagnosis            sql.NullString `db:"diagnosis" json:"diagnosis,omitzero"`
+	Recommendations      sql.NullString `db:"recommendations" json:"recommendations,omitzero"`
+	ResultFileURL        sql.NullString `db:"result_file_url" json:"resultFileURL,omitzero"`
 	CreatedAt            time.Time      `db:"created_at" json:"createdAt"`
 	UpdatedAt            time.Time      `db:"updated_at" json:"updatedAt"`
+
+	// Связанные данные для GORM Preload
+	Doctor  Doctor  `gorm:"foreignKey:DoctorID"`
+	Service Service `gorm:"foreignKey:ServiceID"`
 }
 
 // Prescription представляет назначение/рецепт от врача
@@ -35,6 +39,7 @@ type Prescription struct {
 	Status        string       `db:"status" json:"status"`
 	CompletedAt   sql.NullTime `db:"completed_at" json:"completedAt,omitempty"`
 	CreatedAt     time.Time    `db:"created_at" json:"createdAt"`
+	ArchivedDate  sql.NullTime `json:"archivedDate,omitempty"`
 }
 
 // Review представляет отзыв пациента о враче

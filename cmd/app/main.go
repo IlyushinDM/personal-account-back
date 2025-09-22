@@ -62,7 +62,6 @@ type _ struct {
 
 func main() {
 	// Загружаем переменные окружения из .env файла, если он существует.
-	// Это удобно для локальной разработки.
 	if err := godotenv.Load(); err != nil {
 		logger.Default().Warn("Файл .env не найден, используются системные переменные окружения")
 	}
@@ -103,7 +102,7 @@ func main() {
 
 	// Инициализируем роутер
 	r := gin.New()
-	r.Use(logger.GinLogger(), gin.Recovery()) // чтоб записывать запросы в логгер
+	r.Use(logger.GinLogger(), gin.Recovery())
 
 	router := handlers.InitRoutes()
 	// Запускаем HTTP-сервер в отдельной горутине.
