@@ -2,9 +2,7 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"lk/internal/models"
@@ -14,11 +12,8 @@ import (
 )
 
 var (
-	ErrAppointmentNotFound = errors.New("appointment not found")
-	ErrForbidden           = errors.New("user does not have permission for this action")
-	ErrDoctorNotFound      = errors.New("doctor not found")
-	ErrNoSchedule          = errors.New("doctor has no schedule for the selected date")
-	ErrNoAvailableSlots    = errors.New("no available slots for the selected date")
+	ErrNoSchedule       = errors.New("doctor has no schedule for the selected date")
+	ErrNoAvailableSlots = errors.New("no available slots for the selected date")
 )
 
 // appointmentService реализует интерфейс AppointmentService.
@@ -46,10 +41,10 @@ func (s *appointmentService) CreateAppointment(ctx context.Context, appointment 
 	// 1. Проверить, существует ли такой doctorID.
 	_, err := s.doctorRepo.GetDoctorByID(ctx, appointment.DoctorID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, ErrDoctorNotFound
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, NewNotFoundError("doctor not found", err)
 		}
-		return 0, fmt.Errorf("failed to check doctor existence: %w", err)
+		return 0, NewInternalServerError("failed to check doctor existence", err)
 	}
 
 	// TODO: Добавить оставшуюся бизнес-логику перед созданием записи:
@@ -66,15 +61,12 @@ func (s *appointmentService) GetAvailableDates(ctx context.Context, doctorID, se
 	month, err := time.Parse("2006-01", monthStr)
 	if err != nil {
 		return models.AvailableDatesResponse{},
-			fmt.Errorf("invalid month format, expected YYYY-MM: %w", err)
+			NewBadRequestError("invalid month format, expected YYYY-MM", err)
 	}
-
-	// TODO: Добавить логику, использующую serviceID для определения длительности приема и фильтрации дней
-	// (например, если в дне не осталось окон под услугу - не показывать его)
 
 	dates, err := s.repo.GetAvailableDatesForMonth(ctx, doctorID, month)
 	if err != nil {
-		return models.AvailableDatesResponse{}, err
+		return models.AvailableDatesResponse{}, NewInternalServerError("failed to get available dates", err)
 	}
 
 	stringDates := make([]string, len(dates))
@@ -96,35 +88,87 @@ func (s *appointmentService) GetAvailableSlots(ctx context.Context, doctorID, se
 	date, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
 		return models.AvailableSlotsResponse{},
-			fmt.Errorf("invalid date format, expected YYYY-MM-DD: %w", err)
+			NewBadRequestError("invalid date format, expected YYYY-MM-DD", err)
 	}
 
+	// Выносим основную логику в отдельную функцию для чистоты
+	slots, err := s.calculateAvailableSlots(ctx, doctorID, serviceID, date)
+	if err != nil {
+		if errors.Is(err, ErrNoSchedule) || errors.Is(err, ErrNoAvailableSlots) {
+			return models.AvailableSlotsResponse{
+				SpecialistID:   doctorID,
+				Date:           dateStr,
+				AvailableSlots: []string{},
+			}, nil
+		}
+		return models.AvailableSlotsResponse{}, err
+	}
+
+	return models.AvailableSlotsResponse{
+		SpecialistID:   doctorID,
+		Date:           dateStr,
+		AvailableSlots: slots,
+	}, nil
+}
+
+func (s *appointmentService) GetUserAppointments(ctx context.Context, userID uint64) ([]models.Appointment, error) {
+	return s.repo.GetAppointmentsByUserID(ctx, userID)
+}
+
+func (s *appointmentService) CancelAppointment(ctx context.Context, userID, appointmentID uint64) error {
+	appointment, err := s.repo.GetAppointmentByID(ctx, appointmentID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return NewNotFoundError("appointment not found", err)
+		}
+		return NewInternalServerError("failed to get appointment", err)
+	}
+
+	if appointment.UserID != userID {
+		return NewForbiddenError("user does not have permission for this action", nil)
+	}
+
+	const cancelledStatusID = 3
+	if err := s.repo.UpdateAppointmentStatus(ctx, appointmentID, cancelledStatusID); err != nil {
+		return NewInternalServerError("failed to update appointment status", err)
+	}
+	return nil
+}
+
+func (s *appointmentService) GetUpcomingForUser(ctx context.Context, userID uint64) ([]models.Appointment, error) {
+	return s.repo.GetUpcomingAppointmentsByUserID(ctx, userID)
+}
+
+// calculateAvailableSlots инкапсулирует логику расчета слотов.
+// Возвращает слайс строк или одну из кастомных ошибок.
+func (s *appointmentService) calculateAvailableSlots(
+	ctx context.Context, doctorID, serviceID uint64, date time.Time,
+) ([]string, error) {
 	// 1. Получить график работы врача на этот день
 	schedule, err := s.repo.GetDoctorScheduleForDate(ctx, doctorID, date)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return models.AvailableSlotsResponse{}, ErrNoSchedule
+			return nil, ErrNoSchedule
 		}
-		return models.AvailableSlotsResponse{}, err
+		return nil, NewInternalServerError("could not get doctor schedule", err)
 	}
 
 	// 2. Получить длительность запрашиваемой услуги
 	requestedServiceDuration, err := s.repo.GetServiceDurationMinutes(ctx, serviceID)
 	if err != nil {
-		return models.AvailableSlotsResponse{}, fmt.Errorf("could not get service duration: %w", err)
+		return nil, NewInternalServerError("could not get service duration", err)
 	}
 	slotStep := time.Duration(requestedServiceDuration) * time.Minute
 
 	// 3. Получить все уже существующие записи на этот день
 	existingAppointments, err := s.repo.GetAppointmentsByDoctorAndDate(ctx, doctorID, date)
 	if err != nil {
-		return models.AvailableSlotsResponse{}, err
+		return nil, NewInternalServerError("could not get existing appointments", err)
 	}
 
 	// 4. Предзагружаем длительности всех услуг для существующих записей (оптимизация)
 	var existingServiceIDs []uint64
 	if len(existingAppointments) > 0 {
-		// Собираем уникальные ID услуг
 		serviceIDSet := make(map[uint64]struct{})
 		for _, app := range existingAppointments {
 			if _, ok := serviceIDSet[app.ServiceID]; !ok {
@@ -134,13 +178,11 @@ func (s *appointmentService) GetAvailableSlots(ctx context.Context, doctorID, se
 		}
 	}
 
-	// Делаем один запрос в БД, чтобы получить все нужные длительности
 	existingServices, err := s.repo.GetServicesByIDs(ctx, existingServiceIDs)
 	if err != nil {
-		return models.AvailableSlotsResponse{}, fmt.Errorf("could not get existing services info: %w", err)
+		return nil, NewInternalServerError("could not get existing services info", err)
 	}
 
-	// Создаем мапу для быстрого доступа к длительности
 	serviceDurations := make(map[uint64]time.Duration)
 	for _, service := range existingServices {
 		serviceDurations[service.ID] = time.Duration(service.DurationMinutes) * time.Minute
@@ -148,19 +190,16 @@ func (s *appointmentService) GetAvailableSlots(ctx context.Context, doctorID, se
 
 	// 5. Вычислить доступные слоты
 	var availableSlots []string
-
 	startTime := time.Date(date.Year(), date.Month(), date.Day(), schedule.StartTime.Hour(),
 		schedule.StartTime.Minute(), 0, 0, s.location)
 	endTime := time.Date(date.Year(), date.Month(), date.Day(), schedule.EndTime.Hour(),
 		schedule.EndTime.Minute(), 0, 0, s.location)
 
-	// Итерируемся по рабочему времени
 	for slotStart := startTime; slotStart.Add(slotStep).Before(endTime) ||
 		slotStart.Add(slotStep).Equal(endTime); slotStart = slotStart.Add(slotStep) {
 		slotEnd := slotStart.Add(slotStep)
 		isAvailable := true
 
-		// Проверяем, не пересекается ли текущий слот с существующими записями
 		for _, app := range existingAppointments {
 			appTime, _ := time.Parse("15:04", app.AppointmentTime)
 			appStart := time.Date(date.Year(), date.Month(), date.Day(), appTime.Hour(),
@@ -180,35 +219,8 @@ func (s *appointmentService) GetAvailableSlots(ctx context.Context, doctorID, se
 	}
 
 	if len(availableSlots) == 0 {
-		return models.AvailableSlotsResponse{}, ErrNoAvailableSlots
+		return nil, ErrNoAvailableSlots
 	}
 
-	return models.AvailableSlotsResponse{
-		SpecialistID:   doctorID,
-		Date:           dateStr,
-		AvailableSlots: availableSlots,
-	}, nil
-}
-
-func (s *appointmentService) GetUserAppointments(ctx context.Context, userID uint64) ([]models.Appointment, error) {
-	return s.repo.GetAppointmentsByUserID(ctx, userID)
-}
-
-func (s *appointmentService) CancelAppointment(ctx context.Context, userID, appointmentID uint64) error {
-	appointment, err := s.repo.GetAppointmentByID(ctx, appointmentID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrAppointmentNotFound
-		}
-		return err
-	}
-	if appointment.UserID != userID {
-		return ErrForbidden
-	}
-	const cancelledStatusID = 3
-	return s.repo.UpdateAppointmentStatus(ctx, appointmentID, cancelledStatusID)
-}
-
-func (s *appointmentService) GetUpcomingForUser(ctx context.Context, userID uint64) ([]models.Appointment, error) {
-	return s.repo.GetUpcomingAppointmentsByUserID(ctx, userID)
+	return availableSlots, nil
 }

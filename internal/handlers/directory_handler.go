@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"lk/internal/services"
+
 	_ "lk/internal/models"
 
 	"github.com/gin-gonic/gin"
@@ -16,13 +18,12 @@ import (
 // @Id           get-departments-tree
 // @Produce      json
 // @Success      200 {array} models.DepartmentWithSpecialties
-// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Failure      401,500 {object} errorResponse
 // @Router       /departments [get]
 func (h *Handler) getDepartmentsTree(c *gin.Context) {
 	departmentsTree, err := h.services.Directory.GetAllDepartmentsWithSpecialties(c.Request.Context())
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError,
-			"Failed to get departments: "+err.Error())
+		c.Error(err)
 		return
 	}
 
@@ -37,8 +38,7 @@ func (h *Handler) getDepartmentsTree(c *gin.Context) {
 // @Produce      json
 // @Param        departmentID query int false "ID Отделения для фильтрации"
 // @Success      200 {array} models.Specialty
-// @Failure      400 {object} errorResponse "Неверный ID отделения"
-// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Failure      400,401,500 {object} errorResponse
 // @Router       /specialties [get]
 func (h *Handler) getSpecialties(c *gin.Context) {
 	var departmentID *uint32
@@ -48,7 +48,7 @@ func (h *Handler) getSpecialties(c *gin.Context) {
 	if deptIDStr != "" {
 		id, err := strconv.ParseUint(deptIDStr, 10, 32)
 		if err != nil {
-			newErrorResponse(c, http.StatusBadRequest, "Invalid department ID format")
+			c.Error(services.NewBadRequestError("Invalid department ID format", err))
 			return
 		}
 		id32 := uint32(id)
@@ -58,7 +58,7 @@ func (h *Handler) getSpecialties(c *gin.Context) {
 	// Вызываем сервис, передавая nil, если параметр не был указан
 	specialties, err := h.services.Directory.GetSpecialties(c.Request.Context(), departmentID)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "Failed to get specialties: "+err.Error())
+		c.Error(err)
 		return
 	}
 

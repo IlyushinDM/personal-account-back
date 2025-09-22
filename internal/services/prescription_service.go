@@ -2,14 +2,13 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 
 	"lk/internal/models"
 	"lk/internal/repository"
-)
 
-var ErrPrescriptionNotFound = errors.New("prescription not found")
+	"gorm.io/gorm"
+)
 
 // prescriptionService реализует интерфейс PrescriptionService.
 type prescriptionService struct {
@@ -23,23 +22,33 @@ func NewPrescriptionService(repo repository.PrescriptionRepository) Prescription
 
 // GetActiveForUser получает активные назначения для пользователя.
 func (s *prescriptionService) GetActiveForUser(ctx context.Context, userID uint64) ([]models.Prescription, error) {
-	return s.repo.GetActiveByUserID(ctx, userID)
+	prescriptions, err := s.repo.GetActiveByUserID(ctx, userID)
+	if err != nil {
+		return nil, NewInternalServerError("failed to get active prescriptions from db", err)
+	}
+	return prescriptions, nil
 }
 
 // ArchiveForUser архивирует назначение для пользователя.
 func (s *prescriptionService) ArchiveForUser(ctx context.Context, userID, prescriptionID uint64) error {
-	// Проверяем, что назначение существует и принадлежит пользователю
+	// Проверяем, что назначение существует
 	prescription, err := s.repo.GetByID(ctx, prescriptionID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrPrescriptionNotFound
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return NewNotFoundError("prescription not found", err)
 		}
-		return err
+		return NewInternalServerError("failed to get prescription from db", err)
 	}
 
+	// Проверяем, что оно принадлежит пользователю
 	if prescription.UserID != userID {
-		return ErrForbidden
+		return NewForbiddenError("user does not have permission for this action", nil)
 	}
 
-	return s.repo.Archive(ctx, userID, prescriptionID)
+	// Выполняем архивацию
+	if err := s.repo.Archive(ctx, userID, prescriptionID); err != nil {
+		return NewInternalServerError("failed to archive prescription", err)
+	}
+
+	return nil
 }

@@ -18,7 +18,7 @@ import (
 // Handler - это контейнер для всех зависимостей слоя обработчиков.
 type Handler struct {
 	services *services.Service
-	userRepo repository.UserRepository
+	userRepo repository.UserRepository // Зависимость для middleware
 }
 
 // NewHandler создает новый экземпляр обработчика.
@@ -42,14 +42,10 @@ func (h *Handler) InitRoutes(router *gin.Engine) {
 		{
 			auth.POST("/register", h.signUp)
 			auth.POST("/login", h.signIn)
-
-			// Эндпоинты для refresh токенов и восстановления пароля
 			auth.POST("/refresh", h.refresh)
 			auth.POST("/logout", h.logout)
 			auth.POST("/forgot-password", h.forgotPassword)
 			auth.POST("/reset-password", h.resetPassword)
-
-			// Заглушки для Госуслуг
 			auth.GET("/gosuslugi", h.gosuslugiLogin)
 			auth.POST("/gosuslugi/callback", h.gosuslugiCallback)
 		}

@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"database/sql"
 	"net/http"
 
 	"lk/internal/models"
+	"lk/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,19 +16,19 @@ import (
 // @Id           get-profile
 // @Produce      json
 // @Success      200 {object} map[string]interface{} "profile, appointments"
-// @Failure      401 {object} errorResponse "Пользователь не авторизован"
-// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Failure      401,500 {object} errorResponse
 // @Router       /profile [get]
 func (h *Handler) getProfile(c *gin.Context) {
 	userProfile, err := getUserProfile(c)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
+		c.Error(services.NewInternalServerError("failed to get user from context", err))
 		return
 	}
 
+	// Профиль уже есть из middleware, нужно только получить записи
 	_, appointments, err := h.services.User.GetFullUserProfile(c.Request.Context(), userProfile.UserID)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.Error(err)
 		return
 	}
 
@@ -39,7 +39,6 @@ func (h *Handler) getProfile(c *gin.Context) {
 }
 
 // updateUserProfileInput - DTO для обновления профиля.
-// Используем указатели, чтобы различать отсутствующие поля и поля с нулевыми значениями.
 type updateUserProfileInput struct {
 	Email  *string `json:"email"`
 	CityID *uint32 `json:"cityID"`
@@ -54,37 +53,34 @@ type updateUserProfileInput struct {
 // @Produce      json
 // @Param        input body updateUserProfileInput true "Обновляемые поля профиля"
 // @Success      200 {object} models.UserProfile
-// @Failure      400 {object} errorResponse "Ошибка валидации"
-// @Failure      401 {object} errorResponse "Пользователь не авторизован"
-// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Failure      400,401,500 {object} errorResponse
 // @Router       /profile [patch]
 func (h *Handler) updateProfile(c *gin.Context) {
 	userProfile, err := getUserProfile(c)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
+		c.Error(services.NewInternalServerError("failed to get user from context", err))
 		return
 	}
 
 	var input updateUserProfileInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		newErrorResponse(c, http.StatusBadRequest, "invalid input body: "+err.Error())
+		c.Error(services.NewBadRequestError("invalid input body", err))
 		return
 	}
 
 	// Создаем модель на основе DTO
 	userProfileUpdate := models.UserProfile{}
 	if input.Email != nil {
-		userProfileUpdate.Email = sql.NullString{String: *input.Email, Valid: true}
+		userProfileUpdate.Email.String = *input.Email
+		userProfileUpdate.Email.Valid = true
 	}
 	if input.CityID != nil {
 		userProfileUpdate.CityID = *input.CityID
 	}
 
-	updatedProfile, err := h.services.User.UpdateUserProfile(c.Request.Context(),
-		userProfile.UserID, userProfileUpdate)
+	updatedProfile, err := h.services.User.UpdateUserProfile(c.Request.Context(), userProfile.UserID, userProfileUpdate)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError,
-			"failed to update profile: "+err.Error())
+		c.Error(err)
 		return
 	}
 
@@ -100,31 +96,29 @@ func (h *Handler) updateProfile(c *gin.Context) {
 // @Produce      json
 // @Param        avatar formData file true "Файл изображения для аватара"
 // @Success      200 {object} map[string]interface{} "message, avatarURL"
-// @Failure      400 {object} errorResponse "Файл не был предоставлен"
-// @Failure      401 {object} errorResponse "Пользователь не авторизован"
-// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Failure      400,401,500 {object} errorResponse
 // @Router       /profile/avatar [post]
 func (h *Handler) updateAvatar(c *gin.Context) {
 	userProfile, err := getUserProfile(c)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
+		c.Error(services.NewInternalServerError("failed to get user from context", err))
 		return
 	}
 
 	file, err := c.FormFile("avatar")
 	if err != nil {
-		newErrorResponse(c, http.StatusBadRequest, "avatar file is required: "+err.Error())
+		c.Error(services.NewBadRequestError("avatar file is required", err))
 		return
 	}
 
-	avatarURL, err := h.services.User.UpdateAvatar(c.Request.Context(), userProfile.UserID, file)
+	avatarKey, err := h.services.User.UpdateAvatar(c.Request.Context(), userProfile.UserID, file)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "failed to update avatar: "+err.Error())
+		c.Error(err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":   "avatar updated successfully",
-		"avatarURL": avatarURL,
+		"avatarURL": avatarKey, // Возвращаем ключ объекта, а не полный URL
 	})
 }
