@@ -28,20 +28,21 @@ func (r *DoctorPostgres) GetDoctorByID(ctx context.Context, id uint64) (models.D
 }
 
 // GetSpecialistRecommendations возвращает фиктивный текст рекомендаций для специалиста.
-// ! Это mock-реализация. В реальном приложении здесь будет запрос к полю в таблице doctors.
 func (r *DoctorPostgres) GetSpecialistRecommendations(ctx context.Context, doctorID uint64) (string, error) {
-	// Просто проверяем, что доктор существует
 	var doctor models.Doctor
-	err := r.db.WithContext(ctx).Select("id").First(&doctor, doctorID).Error
+	// Выбираем только одно поле для эффективности
+	err := r.db.WithContext(ctx).Select("recommendations").First(&doctor, doctorID).Error
 	if err != nil {
 		return "", err
 	}
-	return "Пожалуйста, приходите за 10 минут до начала приема и возьмите с собой все предыдущие медицинские заключения.", nil
+	return doctor.Recommendations.String, nil
 }
 
 // GetDoctorsBySpecialty получает список врачей по ID их специальности с пагинацией и сортировкой.
 // Возвращает список врачей и общее количество врачей по данной специальности.
-func (r *DoctorPostgres) GetDoctorsBySpecialty(ctx context.Context, specialtyID uint32, params models.PaginationParams) ([]models.Doctor, int64, error) {
+func (r *DoctorPostgres) GetDoctorsBySpecialty(
+	ctx context.Context, specialtyID uint32, params models.PaginationParams,
+) ([]models.Doctor, int64, error) {
 	var doctors []models.Doctor
 	var total int64
 
@@ -76,7 +77,8 @@ func (r *DoctorPostgres) GetDoctorsBySpecialty(ctx context.Context, specialtyID 
 	// Получаем пагинированные данные
 	offset := (params.Page - 1) * params.Limit
 	orderClause := fmt.Sprintf("%s %s", orderByColumn, sortOrder)
-	err := query.Preload("Specialty").Order(orderClause).Limit(params.Limit).Offset(offset).Find(&doctors).Error
+	err := query.Preload("Specialty").Order(
+		orderClause).Limit(params.Limit).Offset(offset).Find(&doctors).Error
 
 	return doctors, total, err
 }
@@ -88,7 +90,8 @@ func (r *DoctorPostgres) SearchDoctors(ctx context.Context, searchQuery string) 
 
 	err := r.db.WithContext(ctx).Preload("Specialty").
 		Joins("JOIN medical_center.specialties ON medical_center.specialties.id = medical_center.doctors.specialty_id").
-		Where("LOWER(CONCAT_WS(' ', last_name, first_name, patronymic)) LIKE ? OR LOWER(medical_center.specialties.name) LIKE ?", searchPattern, searchPattern).
+		Where("LOWER(CONCAT_WS(' ', last_name, first_name, patronymic)) LIKE ? OR LOWER(medical_center.specialties.name) LIKE ?",
+			searchPattern, searchPattern).
 		Find(&doctors).Error
 
 	return doctors, err

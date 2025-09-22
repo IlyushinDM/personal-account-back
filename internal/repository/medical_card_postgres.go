@@ -20,8 +20,16 @@ func NewMedicalCardPostgres(db *gorm.DB) *MedicalCardPostgres {
 	return &MedicalCardPostgres{db: db}
 }
 
+// GetAnalysisByID находит анализ по его ID.
+func (r *MedicalCardPostgres) GetAnalysisByID(ctx context.Context, analysisID uint64) (models.LabAnalysis, error) {
+	var analysis models.LabAnalysis
+	err := r.db.WithContext(ctx).First(&analysis, analysisID).Error
+	return analysis, err
+}
+
 // GetCompletedVisits получает завершенные визиты (FR-4.1) с предзагрузкой данных
-func (r *MedicalCardPostgres) GetCompletedVisits(ctx context.Context, userID uint64, params models.PaginationParams,
+func (r *MedicalCardPostgres) GetCompletedVisits(
+	ctx context.Context, userID uint64, params models.PaginationParams,
 ) ([]models.Appointment, int64, error) {
 	var visits []models.Appointment
 	var total int64
@@ -67,8 +75,7 @@ func (r *MedicalCardPostgres) GetAnalysesByUserID(
 	query := r.db.WithContext(ctx).Where("user_id = ?", userID)
 	if status != nil && *status != "" {
 		// Предполагаем, что статусы в БД хранятся как 'completed', 'in_progress'
-		query = query.Joins(
-			"JOIN medical_center.analysisstatuses ON medical_center.analysisstatuses.id = medical_center.labanalyses.status_id").
+		query = query.Joins("JOIN medical_center.analysisstatuses ON medical_center.analysisstatuses.id = medical_center.labanalyses.status_id").
 			Where("medical_center.analysisstatuses.name = ?", *status)
 	}
 	err := query.Find(&analyses).Error
@@ -76,9 +83,7 @@ func (r *MedicalCardPostgres) GetAnalysesByUserID(
 }
 
 // GetArchivedPrescriptionsByUserID получает архивные назначения (FR-4.3)
-func (r *MedicalCardPostgres) GetArchivedPrescriptionsByUserID(
-	ctx context.Context, userID uint64,
-) ([]models.Prescription, error) {
+func (r *MedicalCardPostgres) GetArchivedPrescriptionsByUserID(ctx context.Context, userID uint64) ([]models.Prescription, error) {
 	var prescriptions []models.Prescription
 	err := r.db.WithContext(ctx).
 		Where("user_id = ? AND status = ?", userID, "archived").

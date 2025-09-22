@@ -29,6 +29,7 @@ type WorkHours struct {
 
 // LegalDocument представляет DTO для юридического документа.
 type LegalDocument struct {
+	ID         uint64 `gorm:"primarykey" json:"-"`
 	Type       string `json:"type" example:"privacy_policy"`
 	Title      string `json:"title" example:"Политика конфиденциальности"`
 	URL        string `json:"url" example:"/legal/privacy.pdf"`

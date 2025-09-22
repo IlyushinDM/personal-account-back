@@ -82,7 +82,8 @@ func (h *Handler) updateProfile(c *gin.Context) {
 
 	updatedProfile, err := h.services.User.UpdateUserProfile(c.Request.Context(), userID, userProfileUpdate)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "failed to update profile: "+err.Error())
+		newErrorResponse(c, http.StatusInternalServerError,
+			"failed to update profile: "+err.Error())
 		return
 	}
 

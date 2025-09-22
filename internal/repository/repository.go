@@ -45,14 +45,19 @@ type DoctorRepository interface {
 }
 
 // AppointmentRepository определяет методы для работы с записями на прием.
+// ИНТЕРФЕЙС ОБНОВЛЕН
 type AppointmentRepository interface {
 	CreateAppointment(ctx context.Context, appointment models.Appointment) (uint64, error)
 	GetAppointmentsByUserID(ctx context.Context, userID uint64) ([]models.Appointment, error)
 	GetUpcomingAppointmentsByUserID(ctx context.Context, userID uint64) ([]models.Appointment, error)
 	GetAppointmentByID(ctx context.Context, appointmentID uint64) (models.Appointment, error)
 	UpdateAppointmentStatus(ctx context.Context, appointmentID uint64, statusID uint32) error
-	GetAvailableDates(ctx context.Context, doctorID uint64, month time.Time) ([]time.Time, error)
-	GetAvailableSlots(ctx context.Context, doctorID uint64, date time.Time) ([]string, error)
+
+	// Новые методы для работы с реальным расписанием
+	GetAvailableDatesForMonth(ctx context.Context, doctorID uint64, month time.Time) ([]time.Time, error)
+	GetDoctorScheduleForDate(ctx context.Context, doctorID uint64, date time.Time) (models.Schedule, error)
+	GetServiceDurationMinutes(ctx context.Context, serviceID uint64) (uint16, error)
+	GetAppointmentsByDoctorAndDate(ctx context.Context, doctorID uint64, date time.Time) ([]models.Appointment, error)
 }
 
 // DirectoryRepository определяет методы для работы со справочниками.
@@ -87,6 +92,7 @@ type MedicalCardRepository interface {
 	GetArchivedPrescriptionsByUserID(ctx context.Context, userID uint64) ([]models.Prescription, error)
 	GetSummaryInfo(ctx context.Context, userID uint64) (models.MedicalCardSummary, error)
 	ArchivePrescription(ctx context.Context, userID, prescriptionID uint64) error
+	GetAnalysisByID(ctx context.Context, analysisID uint64) (models.LabAnalysis, error)
 }
 
 // Repository - это контейнер для всех репозиториев приложения.

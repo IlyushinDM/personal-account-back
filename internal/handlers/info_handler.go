@@ -20,7 +20,8 @@ import (
 func (h *Handler) getClinicInfo(c *gin.Context) {
 	info, err := h.services.Info.GetClinicInfo(c.Request.Context())
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "failed to get clinic info: "+err.Error())
+		newErrorResponse(c, http.StatusInternalServerError,
+			"failed to get clinic info: "+err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, info)
@@ -38,7 +39,8 @@ func (h *Handler) getClinicInfo(c *gin.Context) {
 func (h *Handler) getLegalDocuments(c *gin.Context) {
 	docs, err := h.services.Info.GetLegalDocuments(c.Request.Context())
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "failed to get legal documents: "+err.Error())
+		newErrorResponse(c, http.StatusInternalServerError,
+			"failed to get legal documents: "+err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, docs)

@@ -13,50 +13,41 @@ type InfoPostgres struct {
 	db *gorm.DB
 }
 
-// NewInfoPostgres создает новый экземпляр репозитория для общей информации.
+// NewInfoPostgres создает новый экземпляр репозитория.
 func NewInfoPostgres(db *gorm.DB) *InfoPostgres {
 	return &InfoPostgres{db: db}
 }
 
-// GetClinicInfo возвращает mock-данные о клинике.
-// ! Это mock-реализация. В реальном приложении здесь будет запрос к БД.
+// GetClinicInfo возвращает информацию о клинике из БД.
 func (r *InfoPostgres) GetClinicInfo(ctx context.Context) (models.ClinicInfo, error) {
+	var clinic models.Clinic
+	// Предполагаем, что основная клиника имеет ID = 1
+	err := r.db.WithContext(ctx).First(&clinic, 1).Error
+	if err != nil {
+		return models.ClinicInfo{}, err
+	}
+
+	// Формируем DTO на основе полученных данных
 	info := models.ClinicInfo{
-		Name: "Клиника 'Здоровье'",
+		Name: clinic.Name,
 		Contacts: []models.Contact{
-			{Type: "phone", Value: "+7 (495) 222-33-44"},
+			{Type: "phone", Value: clinic.Phone},
 			{Type: "email", Value: "info@clinic.ru"},
 		},
 		Addresses: []models.Address{
-			{ID: 1, Address: "ул. Ленина, д. 100", IsMain: true},
+			{ID: int(clinic.ID), Address: clinic.Address, IsMain: true},
 		},
 		WorkingHours: []models.WorkHours{
 			{Days: "пн-пт", Hours: "08:00 - 20:00"},
 			{Days: "сб", Hours: "09:00 - 18:00"},
 		},
 	}
-	// В реальном приложении можно было бы сделать r.db.WithContext(ctx).Find(&info)
 	return info, nil
 }
 
-// GetLegalDocuments возвращает mock-данные о юридических документах.
-// ! Это mock-реализация.
+// GetLegalDocuments возвращает список юридических документов из БД.
 func (r *InfoPostgres) GetLegalDocuments(ctx context.Context) ([]models.LegalDocument, error) {
-	docs := []models.LegalDocument{
-		{
-			Type:       "terms_of_use",
-			Title:      "Пользовательское соглашение",
-			URL:        "/legal/terms.pdf",
-			Version:    "1.2",
-			UpdateDate: "2023-10-01",
-		},
-		{
-			Type:       "privacy_policy",
-			Title:      "Политика конфиденциальности",
-			URL:        "/legal/privacy.pdf",
-			Version:    "2.0",
-			UpdateDate: "2023-09-15",
-		},
-	}
-	return docs, nil
+	var docs []models.LegalDocument
+	err := r.db.WithContext(ctx).Find(&docs).Error
+	return docs, err
 }

@@ -16,6 +16,7 @@ type Doctor struct {
 	Rating          float32        `db:"rating" json:"rating"`
 	ReviewCount     uint32         `db:"review_count" json:"reviewCount"`
 	AvatarURL       sql.NullString `db:"avatar_url" json:"avatarURL,omitempty"`
+	Recommendations sql.NullString `json:"recommendations,omitempty"`
 	CreatedAt       time.Time      `db:"created_at" json:"createdAt"`
 	Specialty       Specialty      `gorm:"foreignKey:SpecialtyID" db:"specialty" json:"specialty"`
 }

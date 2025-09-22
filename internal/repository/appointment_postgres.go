@@ -14,9 +14,53 @@ type AppointmentPostgres struct {
 	db *gorm.DB
 }
 
-// NewAppointmentPostgres создает новый экземпляр репозитория для записей на прием.
+// NewAppointmentPostgres создает новый экземпляр репозитория.
 func NewAppointmentPostgres(db *gorm.DB) *AppointmentPostgres {
 	return &AppointmentPostgres{db: db}
+}
+
+// GetDoctorScheduleForDate получает расписание врача на конкретную дату.
+func (r *AppointmentPostgres) GetDoctorScheduleForDate(
+	ctx context.Context, doctorID uint64, date time.Time,
+) (models.Schedule, error) {
+	var schedule models.Schedule
+	err := r.db.WithContext(ctx).Where(
+		"doctor_id = ? AND date = ?", doctorID, date).First(&schedule).Error
+	return schedule, err
+}
+
+// GetAppointmentsByDoctorAndDate получает все записи к врачу на конкретную дату.
+func (r *AppointmentPostgres) GetAppointmentsByDoctorAndDate(
+	ctx context.Context, doctorID uint64, date time.Time,
+) ([]models.Appointment, error) {
+	var appointments []models.Appointment
+	err := r.db.WithContext(ctx).Where(
+		"doctor_id = ? AND appointment_date = ?", doctorID, date).Find(&appointments).Error
+	return appointments, err
+}
+
+// GetServiceDurationMinutes получает длительность услуги в минутах.
+func (r *AppointmentPostgres) GetServiceDurationMinutes(ctx context.Context, serviceID uint64) (uint16, error) {
+	var service models.Service
+	err := r.db.WithContext(ctx).Select("duration_minutes").First(&service, serviceID).Error
+	return service.DurationMinutes, err
+}
+
+// GetAvailableDatesForMonth возвращает дни, в которые у врача есть расписание.
+func (r *AppointmentPostgres) GetAvailableDatesForMonth(
+	ctx context.Context, doctorID uint64, month time.Time,
+) ([]time.Time, error) {
+	var dates []time.Time
+	startOfMonth := month.Format("2006-01-02")
+	endOfMonth := month.AddDate(0, 1, -1).Format("2006-01-02")
+
+	err := r.db.WithContext(ctx).Model(&models.Schedule{}).
+		Distinct("date").
+		Where("doctor_id = ? AND date BETWEEN ? AND ?", doctorID, startOfMonth, endOfMonth).
+		Order("date").
+		Pluck("date", &dates).Error
+
+	return dates, err
 }
 
 // CreateAppointment создает новую запись на прием в базе данных.
@@ -31,12 +75,16 @@ func (r *AppointmentPostgres) CreateAppointment(ctx context.Context, appointment
 // GetAppointmentsByUserID получает список всех записей на прием для конкретного пользователя.
 func (r *AppointmentPostgres) GetAppointmentsByUserID(ctx context.Context, userID uint64) ([]models.Appointment, error) {
 	var appointments []models.Appointment
-	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("appointment_date desc, appointment_time desc").Find(&appointments).Error
+	err := r.db.WithContext(ctx).Where(
+		"user_id = ?", userID).Order("appointment_date desc, appointment_time desc").Find(
+		&appointments).Error
 	return appointments, err
 }
 
 // GetAppointmentByID получает запись по ее ID.
-func (r *AppointmentPostgres) GetAppointmentByID(ctx context.Context, appointmentID uint64) (models.Appointment, error) {
+func (r *AppointmentPostgres) GetAppointmentByID(ctx context.Context, appointmentID uint64) (
+	models.Appointment, error,
+) {
 	var appointment models.Appointment
 	err := r.db.WithContext(ctx).First(&appointment, appointmentID).Error
 	return appointment, err
@@ -44,31 +92,19 @@ func (r *AppointmentPostgres) GetAppointmentByID(ctx context.Context, appointmen
 
 // UpdateAppointmentStatus обновляет статус записи.
 func (r *AppointmentPostgres) UpdateAppointmentStatus(ctx context.Context, appointmentID uint64, statusID uint32) error {
-	return r.db.WithContext(ctx).Model(&models.Appointment{}).Where("id = ?", appointmentID).Update("status_id", statusID).Error
-}
-
-// GetAvailableDates возвращает фиктивный список доступных дат для врача в указанном месяце.
-// ! Это mock-реализация. В реальном приложении здесь будет запрос к таблице расписаний.
-func (r *AppointmentPostgres) GetAvailableDates(ctx context.Context, doctorID uint64, month time.Time) ([]time.Time, error) {
-	// Имитируем, что врач работает 5, 10 и 15 числа каждого месяца
-	return []time.Time{
-		time.Date(month.Year(), month.Month(), 5, 0, 0, 0, 0, time.UTC),
-		time.Date(month.Year(), month.Month(), 10, 0, 0, 0, 0, time.UTC),
-		time.Date(month.Year(), month.Month(), 15, 0, 0, 0, 0, time.UTC),
-	}, nil
-}
-
-// GetAvailableSlots возвращает фиктивный список временных слотов для врача на указанную дату.
-// ! Это mock-реализация. В реальном приложении здесь будет сложная логика проверки занятости.
-func (r *AppointmentPostgres) GetAvailableSlots(ctx context.Context, doctorID uint64, date time.Time) ([]string, error) {
-	return []string{"09:00", "09:30", "11:00", "14:00", "14:30"}, nil
+	return r.db.WithContext(ctx).Model(&models.Appointment{}).Where(
+		"id = ?", appointmentID).Update("status_id", statusID).Error
 }
 
 // GetUpcomingAppointmentsByUserID получает список предстоящих записей на прием для пользователя.
-func (r *AppointmentPostgres) GetUpcomingAppointmentsByUserID(ctx context.Context, userID uint64) ([]models.Appointment, error) {
+func (r *AppointmentPostgres) GetUpcomingAppointmentsByUserID(ctx context.Context, userID uint64) (
+	[]models.Appointment, error,
+) {
 	var appointments []models.Appointment
+	// Сравниваем только дату
+	today := time.Now().Format("2006-01-02")
 	err := r.db.WithContext(ctx).
-		Where("user_id = ? AND appointment_date >= ?", userID, time.Now()).
+		Where("user_id = ? AND appointment_date >= ?", userID, today).
 		Order("appointment_date asc, appointment_time asc").
 		Find(&appointments).Error
 	return appointments, err
