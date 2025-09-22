@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 
+	"lk/internal/models"
+
 	"gorm.io/gorm"
 )
 
@@ -11,17 +13,17 @@ type ServicePostgres struct {
 	db *gorm.DB
 }
 
-// NewServicePostgres создает новый экземпляр репозитория для услуг.
+// NewServicePostgres создает новый экземпляр репозитория.
 func NewServicePostgres(db *gorm.DB) *ServicePostgres {
 	return &ServicePostgres{db: db}
 }
 
-// GetServiceRecommendations возвращает фиктивный текст рекомендаций для услуги.
-// ! Это mock-реализация. В реальном приложении здесь будет запрос к полю в таблице services.
+// GetServiceRecommendations получает рекомендации из поля в таблице services.
 func (s *ServicePostgres) GetServiceRecommendations(ctx context.Context, serviceID uint64) (string, error) {
-	// В реальном приложении здесь была бы проверка существования serviceID
-	if serviceID == 0 {
-		return "", gorm.ErrRecordNotFound // Используем стандартную ошибку GORM для "не найдено"
+	var service models.Service
+	err := s.db.WithContext(ctx).Select("recommendations").First(&service, serviceID).Error
+	if err != nil {
+		return "", err
 	}
-	return "Рекомендуется не принимать пищу за 4 часа до процедуры. Воду пить можно.", nil
+	return service.Recommendations.String, nil
 }

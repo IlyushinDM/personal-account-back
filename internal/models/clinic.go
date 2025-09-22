@@ -18,6 +18,7 @@ type Service struct {
 	Price           float64        `db:"price" json:"price"`
 	DurationMinutes uint16         `db:"duration_minutes" json:"durationMinutes"`
 	Description     sql.NullString `db:"description" json:"description,omitempty"`
+	Recommendations sql.NullString `json:"recommendations,omitempty"`
 	DoctorID        uint64         `db:"doctor_id" json:"doctorID"`
 }
 

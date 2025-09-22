@@ -30,7 +30,8 @@ func (h *Handler) getActivePrescriptions(c *gin.Context) {
 
 	prescriptions, err := h.services.Prescription.GetActiveForUser(c.Request.Context(), userID)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "failed to get active prescriptions: "+err.Error())
+		newErrorResponse(c, http.StatusInternalServerError,
+			"failed to get active prescriptions: "+err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, prescriptions)
@@ -71,7 +72,8 @@ func (h *Handler) archivePrescription(c *gin.Context) {
 		case errors.Is(err, services.ErrForbidden):
 			newErrorResponse(c, http.StatusForbidden, err.Error())
 		default:
-			newErrorResponse(c, http.StatusInternalServerError, "failed to archive prescription: "+err.Error())
+			newErrorResponse(c, http.StatusInternalServerError,
+				"failed to archive prescription: "+err.Error())
 		}
 		return
 	}
