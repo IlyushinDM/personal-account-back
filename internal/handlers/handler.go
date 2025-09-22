@@ -94,6 +94,7 @@ func (h *Handler) InitRoutes(router *gin.Engine) {
 				appointments.DELETE("/:id", h.cancelAppointment)
 				appointments.GET("/available-dates", h.getAvailableDates)
 				appointments.GET("/available-slots", h.getAvailableSlots)
+				appointments.GET("/slots-by-range", h.getAvailableSlotsByRange)
 			}
 
 			// --- НАЗНАЧЕНИЯ (FR-2.x) ---

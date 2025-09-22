@@ -65,9 +65,22 @@ type AvailableDatesResponse struct {
 	AvailableDates []string `json:"availableDates"`
 }
 
-// AvailableSlotsResponse представляет DTO для ответа со свободными слотами.
+// AvailableSlotsResponse представляет DTO для ответа со свободными слотами на ОДНУ дату.
 type AvailableSlotsResponse struct {
 	SpecialistID   uint64   `json:"specialistId"`
 	Date           string   `json:"date"`
 	AvailableSlots []string `json:"availableSlots"`
+}
+
+// SlotsForDay - вспомогательная структура для ответа по диапазону.
+type SlotsForDay struct {
+	Date           string   `json:"date"`
+	AvailableSlots []string `json:"availableSlots"`
+}
+
+// AvailableRangeSlotsResponse представляет DTO для ответа со слотами в диапазоне дат.
+type AvailableRangeSlotsResponse struct {
+	SpecialistID uint64        `json:"specialistId"`
+	ServiceID    uint64        `json:"serviceId"`
+	SlotsByDay   []SlotsForDay `json:"slotsByDay"`
 }

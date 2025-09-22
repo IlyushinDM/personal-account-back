@@ -59,6 +59,8 @@ type AppointmentService interface {
 		models.AvailableDatesResponse, error)
 	GetAvailableSlots(ctx context.Context, doctorID, serviceID uint64, date string) (
 		models.AvailableSlotsResponse, error)
+	GetAvailableSlotsByRange(ctx context.Context, doctorID, serviceID uint64, startDate, endDate string) (
+		models.AvailableRangeSlotsResponse, error)
 	GetUpcomingForUser(ctx context.Context, userID uint64) ([]models.Appointment, error)
 }
 

@@ -200,6 +200,45 @@ func (h *Handler) getAvailableSlots(c *gin.Context) {
 	c.JSON(http.StatusOK, slots)
 }
 
+// availableRangeSlotsQuery - структура для валидации query-параметров.
+type availableRangeSlotsQuery struct {
+	SpecialistID uint64 `form:"specialistId" binding:"required"`
+	ServiceID    uint64 `form:"serviceId" binding:"required"`
+	StartDate    string `form:"startDate" binding:"required"` // Формат: YYYY-MM-DD
+	EndDate      string `form:"endDate" binding:"required"`   // Формат: YYYY-MM-DD
+}
+
+// @Summary      Получить доступные слоты времени в диапазоне дат
+// @Security     ApiKeyAuth
+// @Tags         appointments
+// @Description  Возвращает список свободных временных слотов у специалиста в указанном диапазоне дат, сгруппированных по дням.
+// @Id           get-available-slots-by-range
+// @Produce      json
+// @Param        specialistId query int true "ID Специалиста"
+// @Param        serviceId query int true "ID Услуги"
+// @Param        startDate query string true "Начальная дата в формате YYYY-MM-DD"
+// @Param        endDate query string true "Конечная дата в формате YYYY-MM-DD"
+// @Success      200 {object} models.AvailableRangeSlotsResponse
+// @Failure      400,401,500 {object} errorResponse
+// @Router       /appointments/slots-by-range [get]
+func (h *Handler) getAvailableSlotsByRange(c *gin.Context) {
+	var queryParams availableRangeSlotsQuery
+	if err := c.ShouldBindQuery(&queryParams); err != nil {
+		c.Error(services.NewBadRequestError("Invalid query parameters", err))
+		return
+	}
+
+	slots, err := h.services.Appointment.GetAvailableSlotsByRange(c.Request.Context(),
+		queryParams.SpecialistID, queryParams.ServiceID,
+		queryParams.StartDate, queryParams.EndDate)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, slots)
+}
+
 // @Summary      Получить предстоящие записи пользователя
 // @Security     ApiKeyAuth
 // @Tags         appointments

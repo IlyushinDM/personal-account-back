@@ -10,12 +10,13 @@ import (
 
 // signUpInput - структура для валидации входящих данных при регистрации.
 type signUpInput struct {
-	Phone     string `json:"phone" binding:"required"`
-	Password  string `json:"password" binding:"required,min=8"`
-	FullName  string `json:"fullName" binding:"required"`
-	Gender    string `json:"gender" binding:"required"`
-	BirthDate string `json:"birthDate" binding:"required"` // Ожидаемый формат: "YYYY-MM-DD"
-	CityID    uint32 `json:"cityID" binding:"required"`
+	Phone           string `json:"phone" binding:"required"`
+	Password        string `json:"password" binding:"required,min=8"`
+	PasswordConfirm string `json:"passwordConfirm" binding:"required"`
+	FullName        string `json:"fullName" binding:"required"`
+	Gender          string `json:"gender" binding:"required"`
+	BirthDate       string `json:"birthDate" binding:"required"` // Ожидаемый формат: "YYYY-MM-DD"
+	CityID          uint32 `json:"cityID" binding:"required"`
 }
 
 // @Summary      Регистрация пользователя
@@ -32,6 +33,11 @@ func (h *Handler) signUp(c *gin.Context) {
 	var input signUpInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.Error(services.NewBadRequestError("invalid input body", err))
+		return
+	}
+
+	if input.Password != input.PasswordConfirm {
+		c.Error(services.NewBadRequestError("passwords do not match", nil))
 		return
 	}
 
