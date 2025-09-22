@@ -50,8 +50,21 @@ func (s *appointmentService) CreateAppointment(ctx context.Context, appointment 
 	// TODO: Добавить оставшуюся бизнес-логику перед созданием записи:
 	// - Проверить, свободен ли врач в это время (самое важное).
 	// - Проверить, существует ли такой serviceID, clinicID.
-	// - Отправить уведомление пользователю после успешного создания.
-	return s.repo.CreateAppointment(ctx, appointment)
+
+	id, err := s.repo.CreateAppointment(ctx, appointment)
+	if err != nil {
+		return 0, NewInternalServerError("failed to create appointment", err)
+	}
+
+	// TODO: FR-5.5 - Инициировать отправку SMS-уведомления.
+	// 1. Создать новую сущность/сервис для работы с уведомлениями.
+	// 2. Асинхронно (в горутине) вызвать метод, который:
+	//    a. Получит номер телефона пользователя по appointment.UserID.
+	//    b. Сформирует текст сообщения с деталями записи (врач, дата, время).
+	//    c. Отправит SMS через интегрированный SMS-шлюз.
+	//    d. Залогирует результат отправки (успех/ошибка).
+
+	return id, nil
 }
 
 // GetAvailableDates получает доступные для записи даты.

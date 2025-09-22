@@ -201,6 +201,11 @@ func (h *Handler) resetPassword(c *gin.Context) {
 // @Id           gosuslugi-login
 // @Router       /auth/gosuslugi [get]
 func (h *Handler) gosuslugiLogin(c *gin.Context) {
+	// TODO: FR-1.3 - Реализовать OAuth2-аутентификацию через Госуслуги.
+	// 1. Создать OAuth2-конфигурацию с ClientID, ClientSecret, RedirectURL и эндпоинтами Госуслуг.
+	// 2. Сгенерировать URL для редиректа пользователя на страницу авторизации Госуслуг.
+	// 3. Временный state-параметр для защиты от CSRF-атак нужно сохранить в сессии/кэше.
+	// 4. Выполнить редирект: c.Redirect(http.StatusTemporaryRedirect, url)
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
@@ -210,5 +215,13 @@ func (h *Handler) gosuslugiLogin(c *gin.Context) {
 // @Id           gosuslugi-callback
 // @Router       /auth/gosuslugi/callback [post]
 func (h *Handler) gosuslugiCallback(c *gin.Context) {
+	// TODO: FR-1.4 - Реализовать обработку callback от Госуслуг.
+	// 1. Получить 'code' и 'state' из query-параметров.
+	// 2. Проверить 'state' на соответствие сохраненному для защиты от CSRF.
+	// 3. Обменять 'code' на access-токен Госуслуг.
+	// 4. С помощью токена получить данные пользователя (СНИЛС, ФИО и т.д.) из API Госуслуг.
+	// 5. Вызвать новый метод в Authorization-сервисе, например, `AuthorizeGosuslugi(user_data)`.
+	// 6. Сервис должен найти пользователя по СНИЛС, или создать нового, если он не найден.
+	// 7. В случае успеха сгенерировать пару JWT-токенов (access/refresh) и вернуть их клиенту.
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
