@@ -7,29 +7,38 @@ import (
 
 	"lk/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"gorm.io/gorm"
 )
 
 // Transactor определяет интерфейс для управления транзакциями.
 type Transactor interface {
-	WithinTransaction(ctx context.Context, fn func(tx *sqlx.Tx) error) error
+	WithinTransaction(ctx context.Context, fn func(tx *gorm.DB) error) error
 }
 
 // UserRepository определяет методы для работы с пользователями.
 type UserRepository interface {
-	CreateUser(ctx context.Context, tx *sqlx.Tx, user models.User) (uint64, error)
+	CreateUser(ctx context.Context, tx *gorm.DB, user models.User) (uint64, error)
 	GetUserByPhone(ctx context.Context, phone string) (models.User, error)
 	GetUserByID(ctx context.Context, id uint64) (models.User, error)
-	CreateUserProfile(ctx context.Context, tx *sqlx.Tx, profile models.UserProfile) (uint64, error)
+	CreateUserProfile(ctx context.Context, tx *gorm.DB, profile models.UserProfile) (uint64, error)
 	GetUserProfileByUserID(ctx context.Context, userID uint64) (models.UserProfile, error)
 	UpdateUserProfile(ctx context.Context, profile models.UserProfile) (models.UserProfile, error)
 	UpdateAvatar(ctx context.Context, userID uint64, avatarURL string) error
+	UpdatePassword(ctx context.Context, userID uint64, newPasswordHash string) error
+}
+
+// TokenRepository определяет методы для работы с refresh-токенами.
+type TokenRepository interface {
+	Create(ctx context.Context, token models.RefreshToken) error
+	GetByUserID(ctx context.Context, userID uint64) (models.RefreshToken, error)
+	Delete(ctx context.Context, userID uint64) error
 }
 
 // DoctorRepository определяет методы для работы с врачами.
 type DoctorRepository interface {
 	GetDoctorByID(ctx context.Context, id uint64) (models.Doctor, error)
-	GetDoctorsBySpecialty(ctx context.Context, specialtyID uint32, params models.PaginationParams) ([]models.Doctor, int, error)
+	GetDoctorsBySpecialty(ctx context.Context, specialtyID uint32, params models.PaginationParams) (
+		[]models.Doctor, int64, error)
 	SearchDoctors(ctx context.Context, query string) ([]models.Doctor, error)
 	SearchDoctorsByService(ctx context.Context, serviceQuery string) ([]models.Doctor, error)
 	GetSpecialistRecommendations(ctx context.Context, doctorID uint64) (string, error)
@@ -70,28 +79,42 @@ type ServiceRepository interface {
 	GetServiceRecommendations(ctx context.Context, serviceID uint64) (string, error)
 }
 
+// MedicalCardRepository определяет методы для работы с данными медкарты.
+type MedicalCardRepository interface {
+	GetCompletedVisits(ctx context.Context, userID uint64, params models.PaginationParams) (
+		[]models.Appointment, int64, error)
+	GetAnalysesByUserID(ctx context.Context, userID uint64, status *string) ([]models.LabAnalysis, error)
+	GetArchivedPrescriptionsByUserID(ctx context.Context, userID uint64) ([]models.Prescription, error)
+	GetSummaryInfo(ctx context.Context, userID uint64) (models.MedicalCardSummary, error)
+	ArchivePrescription(ctx context.Context, userID, prescriptionID uint64) error
+}
+
 // Repository - это контейнер для всех репозиториев приложения.
 type Repository struct {
 	User         UserRepository
+	Token        TokenRepository
 	Doctor       DoctorRepository
 	Appointment  AppointmentRepository
 	Directory    DirectoryRepository
 	Info         InfoRepository
 	Prescription PrescriptionRepository
 	Service      ServiceRepository
+	MedicalCard  MedicalCardRepository
 	Transactor
 }
 
 // NewRepository создает новый экземпляр главного репозитория.
-func NewRepository(db *sqlx.DB) *Repository {
+func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{
 		User:         NewUserPostgres(db),
+		Token:        NewTokenPostgres(db),
 		Doctor:       NewDoctorPostgres(db),
 		Appointment:  NewAppointmentPostgres(db),
 		Directory:    NewDirectoryPostgres(db),
 		Info:         NewInfoPostgres(db),
 		Prescription: NewPrescriptionPostgres(db),
 		Service:      NewServicePostgres(db),
+		MedicalCard:  NewMedicalCardPostgres(db),
 		Transactor:   NewTransactor(db),
 	}
 }

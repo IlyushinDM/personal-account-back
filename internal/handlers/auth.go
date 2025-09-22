@@ -21,12 +21,12 @@ type signUpInput struct {
 
 // @Summary      Регистрация пользователя
 // @Tags         auth
-// @Description  Создает новый аккаунт пользователя и его профиль, возвращает токен для автоматического входа.
+// @Description  Создает новый аккаунт пользователя и его профиль, возвращает пару токенов для автоматического входа.
 // @Id           create-account
 // @Accept       json
 // @Produce      json
 // @Param        input body signUpInput true "Информация для регистрации"
-// @Success      201 {object} map[string]interface{} "message, userID, accessToken, tokenType"
+// @Success      201 {object} map[string]string "Возвращает accessToken и refreshToken"
 // @Failure      400,409 {object} errorResponse "Ошибка валидации или пользователь уже существует"
 // @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
 // @Router       /auth/register [post]
@@ -38,8 +38,8 @@ func (h *Handler) signUp(c *gin.Context) {
 		return
 	}
 
-	// Вызываем сервис для создания пользователя
-	userID, err := h.services.Authorization.CreateUser(c.Request.Context(), input.Phone,
+	// Вызываем сервис для создания пользователя и получения токенов
+	tokens, err := h.services.Authorization.CreateUser(c.Request.Context(), input.Phone,
 		input.Password,
 		input.FullName, input.Gender, input.BirthDate, input.CityID)
 	if err != nil {
@@ -51,21 +51,7 @@ func (h *Handler) signUp(c *gin.Context) {
 		return
 	}
 
-	// Генерируем токен для автоматического входа после регистрации
-	token, err := h.services.Authorization.GenerateToken(c.Request.Context(), input.Phone,
-		input.Password)
-	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError,
-			"failed to generate token after registration: "+err.Error())
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"message":     "user successfully registered",
-		"userID":      userID,
-		"accessToken": token,
-		"tokenType":   "Bearer",
-	})
+	c.JSON(http.StatusCreated, tokens)
 }
 
 // signInInput - структура для валидации данных при входе.
@@ -76,12 +62,12 @@ type signInInput struct {
 
 // @Summary      Вход в систему (аутентификация)
 // @Tags         auth
-// @Description  Аутентифицирует пользователя по номеру телефона и паролю, возвращает JWT.
+// @Description  Аутентифицирует пользователя по номеру телефона и паролю, возвращает пару JWT (access и refresh).
 // @Id           login
 // @Accept       json
 // @Produce      json
 // @Param        input body signInInput true "Учетные данные для входа"
-// @Success      200 {object} map[string]interface{} "accessToken, tokenType"
+// @Success      200 {object} map[string]string "Возвращает accessToken и refreshToken"
 // @Failure      400,401 {object} errorResponse "Ошибка валидации или неверные учетные данные"
 // @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
 // @Router       /auth/login [post]
@@ -93,7 +79,7 @@ func (h *Handler) signIn(c *gin.Context) {
 		return
 	}
 
-	token, err := h.services.Authorization.GenerateToken(c.Request.Context(),
+	tokens, err := h.services.Authorization.GenerateToken(c.Request.Context(),
 		input.Phone, input.Password)
 	if err != nil {
 		if errors.Is(err, services.ErrInvalidCredentials) {
@@ -104,8 +90,144 @@ func (h *Handler) signIn(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"accessToken": token,
-		"tokenType":   "Bearer",
-	})
+	c.JSON(http.StatusOK, tokens)
+}
+
+type refreshInput struct {
+	RefreshToken string `json:"refreshToken" binding:"required"`
+}
+
+// @Summary      Обновление токенов
+// @Tags         auth
+// @Description  Получает новую пару access и refresh токенов по валидному refresh токену.
+// @Id           refresh-token
+// @Accept       json
+// @Produce      json
+// @Param        input body refreshInput true "Refresh токен"
+// @Success      200 {object} map[string]string "Возвращает accessToken и refreshToken"
+// @Failure      400,401 {object} errorResponse "Ошибка валидации или невалидный refresh токен"
+// @Router       /auth/refresh [post]
+func (h *Handler) refresh(c *gin.Context) {
+	var input refreshInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		newErrorResponse(c, http.StatusBadRequest, "invalid input body: "+err.Error())
+		return
+	}
+
+	tokens, err := h.services.Authorization.RefreshToken(c.Request.Context(), input.RefreshToken)
+	if err != nil {
+		newErrorResponse(c, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, tokens)
+}
+
+// @Summary      Выход из системы
+// @Tags         auth
+// @Description  Инвалидирует refresh токен на сервере, завершая сессию.
+// @Id           logout
+// @Accept       json
+// @Produce      json
+// @Param        input body refreshInput true "Refresh токен"
+// @Success      200 {object} statusResponse "Статус операции"
+// @Failure      400,401 {object} errorResponse "Ошибка валидации или невалидный refresh токен"
+// @Router       /auth/logout [post]
+func (h *Handler) logout(c *gin.Context) {
+	var input refreshInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		newErrorResponse(c, http.StatusBadRequest, "invalid input body: "+err.Error())
+		return
+	}
+
+	if err := h.services.Authorization.Logout(c.Request.Context(), input.RefreshToken); err != nil {
+		newErrorResponse(c, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, statusResponse{Status: "you have been logged out"})
+}
+
+type forgotPasswordInput struct {
+	Phone string `json:"phone" binding:"required"`
+}
+
+// @Summary      Восстановление пароля (шаг 1: запрос кода)
+// @Tags         auth
+// @Description  Отправляет код подтверждения для сброса пароля (в текущей реализации код выводится в лог сервера).
+// @Id           forgot-password
+// @Accept       json
+// @Produce      json
+// @Param        input body forgotPasswordInput true "Номер телефона"
+// @Success      200 {object} statusResponse
+// @Failure      400,500 {object} errorResponse
+// @Router       /auth/forgot-password [post]
+func (h *Handler) forgotPassword(c *gin.Context) {
+	var input forgotPasswordInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		newErrorResponse(c, http.StatusBadRequest, "invalid input body: "+err.Error())
+		return
+	}
+
+	if err := h.services.Authorization.ForgotPassword(c.Request.Context(), input.Phone); err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, statusResponse{Status: "confirmation code has been sent"})
+}
+
+type resetPasswordInput struct {
+	Phone       string `json:"phone" binding:"required"`
+	Code        string `json:"code" binding:"required"`
+	NewPassword string `json:"newPassword" binding:"required,min=8"`
+}
+
+// @Summary      Восстановление пароля (шаг 2: сброс)
+// @Tags         auth
+// @Description  Устанавливает новый пароль, используя код подтверждения.
+// @Id           reset-password
+// @Accept       json
+// @Produce      json
+// @Param        input body resetPasswordInput true "Данные для сброса"
+// @Success      200 {object} statusResponse
+// @Failure      400,401 {object} errorResponse "Неверный код или другие ошибки"
+// @Router       /auth/reset-password [post]
+func (h *Handler) resetPassword(c *gin.Context) {
+	var input resetPasswordInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		newErrorResponse(c, http.StatusBadRequest, "invalid input body: "+err.Error())
+		return
+	}
+
+	err := h.services.Authorization.ResetPassword(c.Request.Context(), input.Phone, input.Code,
+		input.NewPassword)
+	if err != nil {
+		if errors.Is(err, services.ErrCodeMismatch) {
+			newErrorResponse(c, http.StatusUnauthorized, err.Error())
+			return
+		}
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, statusResponse{Status: "password has been reset successfully"})
+}
+
+// @Summary      Вход через Госуслуги (заглушка)
+// @Tags         auth
+// @Description  Перенаправляет пользователя на страницу авторизации Госуслуг. (Не реализовано)
+// @Id           gosuslugi-login
+// @Router       /auth/gosuslugi [get]
+func (h *Handler) gosuslugiLogin(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, errorResponse{Message: "Not implemented yet"})
+}
+
+// @Summary      Callback от Госуслуг (заглушка)
+// @Tags         auth
+// @Description  Обрабатывает ответ от Госуслуг. (Не реализовано)
+// @Id           gosuslugi-callback
+// @Router       /auth/gosuslugi/callback [post]
+func (h *Handler) gosuslugiCallback(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, errorResponse{Message: "Not implemented yet"})
 }

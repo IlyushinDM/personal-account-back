@@ -7,7 +7,7 @@ import (
 
 // Appointment представляет запись на прием к врачу
 type Appointment struct {
-	ID                   uint64         `db:"id" json:"id"`
+	ID                   uint64         `gorm:"primarykey" db:"id" json:"id"`
 	UserID               uint64         `db:"user_id" json:"userID"`
 	DoctorID             uint64         `db:"doctor_id" json:"doctorID"`
 	ServiceID            uint64         `db:"service_id" json:"serviceID"`
@@ -17,17 +17,21 @@ type Appointment struct {
 	StatusID             uint32         `db:"status_id" json:"statusID"`
 	PriceAtBooking       float64        `db:"price_at_booking" json:"priceAtBooking"`
 	IsDMS                bool           `db:"is_dms" json:"isDMS"`
-	PreVisitInstructions sql.NullString `db:"pre_visit_instructions" json:"preVisitInstructions,omitempty"`
-	Diagnosis            sql.NullString `db:"diagnosis" json:"diagnosis,omitempty"`
-	Recommendations      sql.NullString `db:"recommendations" json:"recommendations,omitempty"`
-	ResultFileURL        sql.NullString `db:"result_file_url" json:"resultFileURL,omitempty"`
+	PreVisitInstructions sql.NullString `db:"pre_visit_instructions" json:"preVisitInstructions,omitzero"`
+	Diagnosis            sql.NullString `db:"diagnosis" json:"diagnosis,omitzero"`
+	Recommendations      sql.NullString `db:"recommendations" json:"recommendations,omitzero"`
+	ResultFileURL        sql.NullString `db:"result_file_url" json:"resultFileURL,omitzero"`
 	CreatedAt            time.Time      `db:"created_at" json:"createdAt"`
 	UpdatedAt            time.Time      `db:"updated_at" json:"updatedAt"`
+
+	// Связанные данные для GORM Preload
+	Doctor  Doctor  `gorm:"foreignKey:DoctorID"`
+	Service Service `gorm:"foreignKey:ServiceID"`
 }
 
 // Prescription представляет назначение/рецепт от врача
 type Prescription struct {
-	ID            uint64       `db:"id" json:"id"`
+	ID            uint64       `gorm:"primarykey" db:"id" json:"id"`
 	AppointmentID uint64       `db:"appointment_id" json:"appointmentID"`
 	UserID        uint64       `db:"user_id" json:"userID"`
 	DoctorID      uint64       `db:"doctor_id" json:"doctorID"`
@@ -35,11 +39,12 @@ type Prescription struct {
 	Status        string       `db:"status" json:"status"`
 	CompletedAt   sql.NullTime `db:"completed_at" json:"completedAt,omitempty"`
 	CreatedAt     time.Time    `db:"created_at" json:"createdAt"`
+	ArchivedDate  sql.NullTime `json:"archivedDate,omitempty"`
 }
 
 // Review представляет отзыв пациента о враче
 type Review struct {
-	ID          uint64         `db:"id" json:"id"`
+	ID          uint64         `gorm:"primarykey" db:"id" json:"id"`
 	UserID      uint64         `db:"user_id" json:"userID"`
 	DoctorID    uint64         `db:"doctor_id" json:"doctorID"`
 	Rating      uint16         `db:"rating" json:"rating"`

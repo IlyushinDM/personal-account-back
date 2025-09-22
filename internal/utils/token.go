@@ -23,12 +23,13 @@ func GenerateToken(userID uint64, secretKey string, ttl time.Duration) (string, 
 
 // ParseToken проверяет JWT и возвращает ID пользователя, который в нем содержится.
 func ParseToken(accessToken string, secretKey string) (uint64, error) {
-	token, err := jwt.ParseWithClaims(accessToken, &jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(secretKey), nil
-	})
+	token, err := jwt.ParseWithClaims(accessToken, &jwt.MapClaims{},
+		func(token *jwt.Token) (any, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return []byte(secretKey), nil
+		})
 	if err != nil {
 		return 0, err
 	}

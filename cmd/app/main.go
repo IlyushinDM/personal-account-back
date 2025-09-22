@@ -6,7 +6,18 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+
 	"lk/internal/config"
 	"lk/internal/handlers"
 	"lk/internal/logger"
@@ -14,15 +25,6 @@ import (
 	"lk/internal/repository"
 	"lk/internal/server"
 	"lk/internal/services"
-	"log"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-
-	"github.com/jmoiron/sqlx"
-	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
 )
 
 // @title API Личного Кабинета
@@ -60,7 +62,6 @@ type _ struct {
 
 func main() {
 	// Загружаем переменные окружения из .env файла, если он существует.
-	// Это удобно для локальной разработки.
 	if err := godotenv.Load(); err != nil {
 		logger.Default().Warn("Файл .env не найден, используются системные переменные окружения")
 	}
@@ -73,16 +74,23 @@ func main() {
 	cfg := config.MustLoad()
 
 	// Устанавливаем соединение с базой данных PostgreSQL.
-	db, err := sqlx.Connect("postgres", cfg.Database.URL)
+	gormDB, err := gorm.Open(postgres.Open(cfg.Database.URL), &gorm.Config{
+		Logger: logger.NewGORMLogger(),
+	})
 	if err != nil {
 		logger.Default().WithError(err).Fatal("не удалось подключиться к базе данных")
+	}
+
+	db, err := gormDB.DB()
+	if err != nil {
+		logger.Default().WithError(err).Fatal("не удалось получить *sql.DB из gorm")
 	}
 	defer db.Close()
 	logger.Default().Info("соединение с базой данных установлено")
 
 	// Инициализируем слои приложения (репозиторий, сервисы, обработчики).
 	// Внедряем зависимости сверху вниз (DI: Dependency Injection).
-	repos := repository.NewRepository(db)
+	repos := repository.NewRepository(gormDB)
 	serviceDeps := services.ServiceDependencies{
 		Repos:      repos,
 		SigningKey: cfg.Auth.JWTSecretKey,
@@ -92,11 +100,11 @@ func main() {
 	handlers := handlers.NewHandler(services)
 	logger.Default().Info("слои приложения инициализированы")
 
-	//Инициализируем роутер
+	// Инициализируем роутер
 	r := gin.New()
-	r.Use(logger.GinLogger(), gin.Recovery()) //чтоб записывать запросы в наш афигенный логер
+	r.Use(logger.GinLogger(), gin.Recovery())
 
-	router := handlers.InitRoutes() // в InitRoutes(r) должен передаваться r, но убрал из за ошибки
+	router := handlers.InitRoutes()
 	// Запускаем HTTP-сервер в отдельной горутине.
 	srv := new(server.Server)
 	go func() {
@@ -108,7 +116,6 @@ func main() {
 	log.Printf("сервер запущен на порту: %s", cfg.HTTPServer.Port)
 
 	// Настраиваем graceful shutdown (плавное завершение работы).
-	// Ждем сигнала от операционной системы (SIGINT, SIGTERM).
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 	<-quit

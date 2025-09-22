@@ -7,7 +7,7 @@ import (
 
 // LabAnalysis представляет лабораторный анализ
 type LabAnalysis struct {
-	ID            uint64         `db:"id" json:"id"`
+	ID            uint64         `gorm:"primarykey" db:"id" json:"id"`
 	UserID        uint64         `db:"user_id" json:"userID"`
 	AppointmentID sql.NullInt64  `db:"appointment_id" json:"appointmentID,omitempty"`
 	Name          string         `db:"name" json:"name"`

@@ -6,77 +6,45 @@ import (
 
 	"lk/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"gorm.io/gorm"
 )
 
 // AppointmentPostgres реализует AppointmentRepository для PostgreSQL.
 type AppointmentPostgres struct {
-	db *sqlx.DB
+	db *gorm.DB
 }
 
 // NewAppointmentPostgres создает новый экземпляр репозитория для записей на прием.
-func NewAppointmentPostgres(db *sqlx.DB) *AppointmentPostgres {
+func NewAppointmentPostgres(db *gorm.DB) *AppointmentPostgres {
 	return &AppointmentPostgres{db: db}
 }
 
 // CreateAppointment создает новую запись на прием в базе данных.
 func (r *AppointmentPostgres) CreateAppointment(ctx context.Context, appointment models.Appointment) (uint64, error) {
-	var id uint64
-	query := `
-		INSERT INTO medical_center.appointments (
-			user_id, doctor_id, service_id, clinic_id,
-			appointment_date, appointment_time, status_id,
-			price_at_booking, is_dms
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
-
-	row := r.db.QueryRowContext(
-		ctx,
-		query,
-		appointment.UserID,
-		appointment.DoctorID,
-		appointment.ServiceID,
-		appointment.ClinicID,
-		appointment.AppointmentDate,
-		appointment.AppointmentTime,
-		appointment.StatusID,
-		appointment.PriceAtBooking,
-		appointment.IsDMS,
-	)
-
-	if err := row.Scan(&id); err != nil {
-		return 0, err
+	result := r.db.WithContext(ctx).Create(&appointment)
+	if result.Error != nil {
+		return 0, result.Error
 	}
-	return id, nil
+	return appointment.ID, nil
 }
 
 // GetAppointmentsByUserID получает список всех записей на прием для конкретного пользователя.
 func (r *AppointmentPostgres) GetAppointmentsByUserID(ctx context.Context, userID uint64) ([]models.Appointment, error) {
 	var appointments []models.Appointment
-
-	query := `
-		SELECT
-			a.*
-		FROM medical_center.appointments a
-		WHERE a.user_id=$1
-		ORDER BY a.appointment_date DESC, a.appointment_time DESC`
-
-	err := r.db.SelectContext(ctx, &appointments, query, userID)
+	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("appointment_date desc, appointment_time desc").Find(&appointments).Error
 	return appointments, err
 }
 
 // GetAppointmentByID получает запись по ее ID.
 func (r *AppointmentPostgres) GetAppointmentByID(ctx context.Context, appointmentID uint64) (models.Appointment, error) {
 	var appointment models.Appointment
-	query := "SELECT * FROM medical_center.appointments WHERE id=$1"
-	err := r.db.GetContext(ctx, &appointment, query, appointmentID)
+	err := r.db.WithContext(ctx).First(&appointment, appointmentID).Error
 	return appointment, err
 }
 
 // UpdateAppointmentStatus обновляет статус записи.
 func (r *AppointmentPostgres) UpdateAppointmentStatus(ctx context.Context, appointmentID uint64, statusID uint32) error {
-	query := "UPDATE medical_center.appointments SET status_id = $1 WHERE id = $2"
-	_, err := r.db.ExecContext(ctx, query, statusID, appointmentID)
-	return err
+	return r.db.WithContext(ctx).Model(&models.Appointment{}).Where("id = ?", appointmentID).Update("status_id", statusID).Error
 }
 
 // GetAvailableDates возвращает фиктивный список доступных дат для врача в указанном месяце.
@@ -99,13 +67,9 @@ func (r *AppointmentPostgres) GetAvailableSlots(ctx context.Context, doctorID ui
 // GetUpcomingAppointmentsByUserID получает список предстоящих записей на прием для пользователя.
 func (r *AppointmentPostgres) GetUpcomingAppointmentsByUserID(ctx context.Context, userID uint64) ([]models.Appointment, error) {
 	var appointments []models.Appointment
-
-	query := `
-		SELECT a.*
-		FROM medical_center.appointments a
-		WHERE a.user_id=$1 AND a.appointment_date >= CURRENT_DATE
-		ORDER BY a.appointment_date ASC, a.appointment_time ASC`
-
-	err := r.db.SelectContext(ctx, &appointments, query, userID)
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND appointment_date >= ?", userID, time.Now()).
+		Order("appointment_date asc, appointment_time asc").
+		Find(&appointments).Error
 	return appointments, err
 }

@@ -44,11 +44,21 @@ func (h *Handler) InitRoutes() *gin.Engine {
 		{
 			auth.POST("/register", h.signUp)
 			auth.POST("/login", h.signIn)
+
+			// Эндпоинты для refresh токенов и восстановления пароля
+			auth.POST("/refresh", h.refresh)
+			auth.POST("/logout", h.logout)
+			auth.POST("/forgot-password", h.forgotPassword)
+			auth.POST("/reset-password", h.resetPassword)
+
+			// Заглушки для Госуслуг
+			auth.GET("/gosuslugi", h.gosuslugiLogin)
+			auth.POST("/gosuslugi/callback", h.gosuslugiCallback)
 		}
 
 		// Защищенные эндпоинты, требующие валидного JWT
 		authorized := apiV1.Group("/")
-		authorized.Use(h.userIdentity) // Применяем middleware ко всей группе
+		authorized.Use(h.userIdentity)
 		{
 			// --- ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ (FR-2.x) ---
 			profile := authorized.Group("/profile")
@@ -59,9 +69,9 @@ func (h *Handler) InitRoutes() *gin.Engine {
 			}
 
 			// --- СПРАВОЧНИКИ И ОБЩАЯ ИНФОРМАЦИЯ (FR-2.x, FR-3.x) ---
-			authorized.GET("/clinic-info", h.getClinicInfo)         // FR-2.3
-			authorized.GET("/legal/documents", h.getLegalDocuments) // FR-2.9
-			authorized.GET("/specialties", h.getSpecialties)        // FR-3.2
+			authorized.GET("/clinic-info", h.getClinicInfo)
+			authorized.GET("/legal/documents", h.getLegalDocuments)
+			authorized.GET("/specialties", h.getSpecialties)
 			departments := authorized.Group("/departments")
 			{
 				departments.GET("/", h.getDepartmentsTree)
@@ -98,6 +108,19 @@ func (h *Handler) InitRoutes() *gin.Engine {
 				prescriptions.GET("/active", h.getActivePrescriptions)
 				prescriptions.POST("/:id/archive", h.archivePrescription)
 			}
+
+			// --- МЕДКАРТА (FR-4.x) ---
+			medicalCard := authorized.Group("/medical-card")
+			{
+				medicalCard.GET("/visits", h.getVisits)
+				medicalCard.GET("/analyses", h.getAnalyses)
+				medicalCard.GET("/archive/prescriptions", h.getArchivedPrescriptions)
+				medicalCard.GET("/summary", h.getSummary)
+				medicalCard.POST("/archive/prescriptions", h.archivePrescriptionFromCard)
+			}
+
+			// Отдельный роут для скачивания файлов (FR-4.4)
+			authorized.GET("/files/:id", h.downloadFile)
 		}
 	}
 	return router

@@ -7,29 +7,23 @@ import (
 
 	"lk/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"gorm.io/gorm"
 )
 
 // DoctorPostgres реализует интерфейс DoctorRepository для PostgreSQL.
 type DoctorPostgres struct {
-	db *sqlx.DB
+	db *gorm.DB
 }
 
 // NewDoctorPostgres создает новый экземпляр репозитория для врачей.
-func NewDoctorPostgres(db *sqlx.DB) *DoctorPostgres {
+func NewDoctorPostgres(db *gorm.DB) *DoctorPostgres {
 	return &DoctorPostgres{db: db}
 }
 
 // GetDoctorByID получает информацию о враче по его ID.
 func (r *DoctorPostgres) GetDoctorByID(ctx context.Context, id uint64) (models.Doctor, error) {
 	var doctor models.Doctor
-	query := `
-		SELECT d.*, s.name as "specialty.name"
-		FROM medical_center.doctors d
-		LEFT JOIN medical_center.specialties s ON d.specialty_id = s.id
-		WHERE d.id=$1`
-
-	err := r.db.GetContext(ctx, &doctor, query, id)
+	err := r.db.WithContext(ctx).Preload("Specialty").First(&doctor, id).Error
 	return doctor, err
 }
 
@@ -37,7 +31,8 @@ func (r *DoctorPostgres) GetDoctorByID(ctx context.Context, id uint64) (models.D
 // ! Это mock-реализация. В реальном приложении здесь будет запрос к полю в таблице doctors.
 func (r *DoctorPostgres) GetSpecialistRecommendations(ctx context.Context, doctorID uint64) (string, error) {
 	// Просто проверяем, что доктор существует
-	_, err := r.GetDoctorByID(ctx, doctorID)
+	var doctor models.Doctor
+	err := r.db.WithContext(ctx).Select("id").First(&doctor, doctorID).Error
 	if err != nil {
 		return "", err
 	}
@@ -46,20 +41,20 @@ func (r *DoctorPostgres) GetSpecialistRecommendations(ctx context.Context, docto
 
 // GetDoctorsBySpecialty получает список врачей по ID их специальности с пагинацией и сортировкой.
 // Возвращает список врачей и общее количество врачей по данной специальности.
-func (r *DoctorPostgres) GetDoctorsBySpecialty(ctx context.Context, specialtyID uint32, params models.PaginationParams) ([]models.Doctor, int, error) {
+func (r *DoctorPostgres) GetDoctorsBySpecialty(ctx context.Context, specialtyID uint32, params models.PaginationParams) ([]models.Doctor, int64, error) {
 	var doctors []models.Doctor
-	var total int
+	var total int64
 
 	// Белый список для колонок сортировки для предотвращения SQL-инъекций
 	allowedSortBy := map[string]string{
-		"rating":           "d.rating",
-		"experience":       "d.experience_years",
-		"experience_years": "d.experience_years",
-		"name":             "d.last_name",
+		"rating":           "rating",
+		"experience":       "experience_years",
+		"experience_years": "experience_years",
+		"name":             "last_name",
 	}
 	orderByColumn, ok := allowedSortBy[params.SortBy]
 	if !ok {
-		orderByColumn = "d.rating" // Сортировка по умолчанию
+		orderByColumn = "rating" // Сортировка по умолчанию
 	}
 
 	sortOrder := "DESC"
@@ -67,14 +62,10 @@ func (r *DoctorPostgres) GetDoctorsBySpecialty(ctx context.Context, specialtyID 
 		sortOrder = "ASC"
 	}
 
-	baseQuery := `
-		FROM medical_center.doctors d
-		LEFT JOIN medical_center.specialties s ON d.specialty_id = s.id
-		WHERE d.specialty_id=$1`
+	query := r.db.WithContext(ctx).Model(&models.Doctor{}).Where("specialty_id = ?", specialtyID)
 
 	// Получаем общее количество
-	countQuery := "SELECT COUNT(*) " + baseQuery
-	if err := r.db.GetContext(ctx, &total, countQuery, specialtyID); err != nil {
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -83,44 +74,36 @@ func (r *DoctorPostgres) GetDoctorsBySpecialty(ctx context.Context, specialtyID 
 	}
 
 	// Получаем пагинированные данные
-	dataQuery := fmt.Sprintf(`
-		SELECT d.*, s.name as "specialty.name"
-		%s
-		ORDER BY %s %s
-		LIMIT $2 OFFSET $3`, baseQuery, orderByColumn, sortOrder)
-
 	offset := (params.Page - 1) * params.Limit
-	err := r.db.SelectContext(ctx, &doctors, dataQuery, specialtyID, params.Limit, offset)
+	orderClause := fmt.Sprintf("%s %s", orderByColumn, sortOrder)
+	err := query.Preload("Specialty").Order(orderClause).Limit(params.Limit).Offset(offset).Find(&doctors).Error
+
 	return doctors, total, err
 }
 
 // SearchDoctors выполняет поиск врачей по ФИО или названию специальности.
 func (r *DoctorPostgres) SearchDoctors(ctx context.Context, searchQuery string) ([]models.Doctor, error) {
 	var doctors []models.Doctor
-	searchPattern := "%" + searchQuery + "%"
+	searchPattern := "%" + strings.ToLower(searchQuery) + "%"
 
-	query := `
-		SELECT d.*, s.name as "specialty.name"
-		FROM medical_center.doctors d
-		LEFT JOIN medical_center.specialties s ON d.specialty_id = s.id
-		WHERE CONCAT_WS(' ', d.last_name, d.first_name, d.patronymic) ILIKE $1 OR s.name ILIKE $1`
+	err := r.db.WithContext(ctx).Preload("Specialty").
+		Joins("JOIN medical_center.specialties ON medical_center.specialties.id = medical_center.doctors.specialty_id").
+		Where("LOWER(CONCAT_WS(' ', last_name, first_name, patronymic)) LIKE ? OR LOWER(medical_center.specialties.name) LIKE ?", searchPattern, searchPattern).
+		Find(&doctors).Error
 
-	err := r.db.SelectContext(ctx, &doctors, query, searchPattern)
 	return doctors, err
 }
 
 // SearchDoctorsByService выполняет поиск врачей по названию предоставляемой услуги.
 func (r *DoctorPostgres) SearchDoctorsByService(ctx context.Context, serviceQuery string) ([]models.Doctor, error) {
 	var doctors []models.Doctor
-	searchPattern := "%" + serviceQuery + "%"
+	searchPattern := "%" + strings.ToLower(serviceQuery) + "%"
 
-	query := `
-		SELECT DISTINCT d.*, s.name as "specialty.name"
-		FROM medical_center.doctors d
-		LEFT JOIN medical_center.specialties s ON d.specialty_id = s.id
-		JOIN medical_center.services svc ON d.id = svc.doctor_id
-		WHERE svc.name ILIKE $1`
+	err := r.db.WithContext(ctx).Preload("Specialty").
+		Joins("JOIN medical_center.services ON medical_center.services.doctor_id = medical_center.doctors.id").
+		Where("LOWER(medical_center.services.name) LIKE ?", searchPattern).
+		Distinct().
+		Find(&doctors).Error
 
-	err := r.db.SelectContext(ctx, &doctors, query, searchPattern)
 	return doctors, err
 }
