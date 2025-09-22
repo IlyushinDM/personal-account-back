@@ -5,17 +5,17 @@ import (
 	"net/http"
 	"strings"
 
+	"lk/internal/models"
+
 	"github.com/gin-gonic/gin"
 )
 
 const (
-	// authorizationHeader - ключ заголовка для передачи токена.
 	authorizationHeader = "Authorization"
-	// userCtx - ключ, по которому в контексте запроса хранится ID пользователя.
-	userCtx = "userID"
+	userProfileCtx      = "userProfile"
 )
 
-// userIdentity - это middleware для проверки JWT и идентификации пользователя.
+// userIdentity - это middleware для проверки JWT и загрузки профиля пользователя в контекст.
 func (h *Handler) userIdentity(c *gin.Context) {
 	header := c.GetHeader(authorizationHeader)
 	if header == "" {
@@ -40,22 +40,29 @@ func (h *Handler) userIdentity(c *gin.Context) {
 		return
 	}
 
-	// Записываем ID пользователя в контекст Gin.
-	// Теперь этот ID будет доступен во всех последующих обработчиках этого запроса.
-	c.Set(userCtx, userID)
+	// После успешной валидации токена, загружаем профиль пользователя
+	userProfile, err := h.userRepo.GetUserProfileByUserID(c.Request.Context(), userID)
+	if err != nil {
+		// Если профиль не найден для валидного токена - это тоже ошибка авторизации
+		newErrorResponse(c, http.StatusUnauthorized, "user profile not found")
+		return
+	}
+
+	// Записываем весь профиль в контекст Gin.
+	c.Set(userProfileCtx, userProfile)
 }
 
-// getUserID - вспомогательная функция для извлечения ID пользователя из контекста.
-func getUserID(c *gin.Context) (uint64, error) {
-	id, ok := c.Get(userCtx)
+// getUserProfile - вспомогательная функция для извлечения профиля пользователя из контекста.
+func getUserProfile(c *gin.Context) (models.UserProfile, error) {
+	profile, ok := c.Get(userProfileCtx)
 	if !ok {
-		return 0, errors.New("user ID not found in context")
+		return models.UserProfile{}, errors.New("user profile not found in context")
 	}
 
-	idUint64, ok := id.(uint64)
+	userProfile, ok := profile.(models.UserProfile)
 	if !ok {
-		return 0, errors.New("user ID is of invalid type")
+		return models.UserProfile{}, errors.New("user profile is of invalid type in context")
 	}
 
-	return idUint64, nil
+	return userProfile, nil
 }

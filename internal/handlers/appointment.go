@@ -38,7 +38,7 @@ type createAppointmentInput struct {
 // @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
 // @Router       /appointments [post]
 func (h *Handler) createAppointment(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
 		return
@@ -51,7 +51,7 @@ func (h *Handler) createAppointment(c *gin.Context) {
 	}
 
 	appointment := models.Appointment{
-		UserID:          userID,
+		UserID:          userProfile.UserID,
 		DoctorID:        input.DoctorID,
 		ServiceID:       input.ServiceID,
 		ClinicID:        input.ClinicID,
@@ -89,13 +89,13 @@ func (h *Handler) createAppointment(c *gin.Context) {
 // @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
 // @Router       /appointments [get]
 func (h *Handler) getUserAppointments(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
 		return
 	}
 
-	appointments, err := h.services.Appointment.GetUserAppointments(c.Request.Context(), userID)
+	appointments, err := h.services.Appointment.GetUserAppointments(c.Request.Context(), userProfile.UserID)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "Failed to get appointments: "+err.Error())
 		return
@@ -119,7 +119,7 @@ func (h *Handler) getUserAppointments(c *gin.Context) {
 // @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
 // @Router       /appointments/{id} [delete]
 func (h *Handler) cancelAppointment(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
 		return
@@ -132,7 +132,7 @@ func (h *Handler) cancelAppointment(c *gin.Context) {
 		return
 	}
 
-	err = h.services.Appointment.CancelAppointment(c.Request.Context(), userID, appointmentID)
+	err = h.services.Appointment.CancelAppointment(c.Request.Context(), userProfile.UserID, appointmentID)
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrAppointmentNotFound):
@@ -233,13 +233,13 @@ func (h *Handler) getAvailableSlots(c *gin.Context) {
 // @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
 // @Router       /appointments/upcoming [get]
 func (h *Handler) getUpcomingAppointments(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
 		return
 	}
 
-	appointments, err := h.services.Appointment.GetUpcomingForUser(c.Request.Context(), userID)
+	appointments, err := h.services.Appointment.GetUpcomingForUser(c.Request.Context(), userProfile.UserID)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "Failed to get upcoming appointments: "+err.Error())
 		return

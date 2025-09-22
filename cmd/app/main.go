@@ -129,7 +129,7 @@ func main() {
 		TokenTTL:   cfg.Auth.TokenTTL,
 	}
 	services := services.NewService(serviceDeps)
-	handlers := handlers.NewHandler(services)
+	handlers := handlers.NewHandler(services, repos.User)
 	logger.Default().Info("слои приложения инициализированы")
 
 	// Инициализируем роутер и применяем глобальные middleware

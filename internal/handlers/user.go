@@ -20,20 +20,20 @@ import (
 // @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
 // @Router       /profile [get]
 func (h *Handler) getProfile(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
 		return
 	}
 
-	profile, appointments, err := h.services.User.GetFullUserProfile(c.Request.Context(), userID)
+	_, appointments, err := h.services.User.GetFullUserProfile(c.Request.Context(), userProfile.UserID)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"profile":      profile,
+		"profile":      userProfile,
 		"appointments": appointments,
 	})
 }
@@ -59,7 +59,7 @@ type updateUserProfileInput struct {
 // @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
 // @Router       /profile [patch]
 func (h *Handler) updateProfile(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
 		return
@@ -80,7 +80,8 @@ func (h *Handler) updateProfile(c *gin.Context) {
 		userProfileUpdate.CityID = *input.CityID
 	}
 
-	updatedProfile, err := h.services.User.UpdateUserProfile(c.Request.Context(), userID, userProfileUpdate)
+	updatedProfile, err := h.services.User.UpdateUserProfile(c.Request.Context(),
+		userProfile.UserID, userProfileUpdate)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError,
 			"failed to update profile: "+err.Error())
@@ -104,7 +105,7 @@ func (h *Handler) updateProfile(c *gin.Context) {
 // @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
 // @Router       /profile/avatar [post]
 func (h *Handler) updateAvatar(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
 		return
@@ -116,7 +117,7 @@ func (h *Handler) updateAvatar(c *gin.Context) {
 		return
 	}
 
-	avatarURL, err := h.services.User.UpdateAvatar(c.Request.Context(), userID, file)
+	avatarURL, err := h.services.User.UpdateAvatar(c.Request.Context(), userProfile.UserID, file)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to update avatar: "+err.Error())
 		return

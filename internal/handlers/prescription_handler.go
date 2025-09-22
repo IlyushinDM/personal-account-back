@@ -22,13 +22,13 @@ import (
 // @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
 // @Router       /prescriptions/active [get]
 func (h *Handler) getActivePrescriptions(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
 		return
 	}
 
-	prescriptions, err := h.services.Prescription.GetActiveForUser(c.Request.Context(), userID)
+	prescriptions, err := h.services.Prescription.GetActiveForUser(c.Request.Context(), userProfile.UserID)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError,
 			"failed to get active prescriptions: "+err.Error())
@@ -51,7 +51,7 @@ func (h *Handler) getActivePrescriptions(c *gin.Context) {
 // @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
 // @Router       /prescriptions/{id}/archive [post]
 func (h *Handler) archivePrescription(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
 		return
@@ -64,7 +64,7 @@ func (h *Handler) archivePrescription(c *gin.Context) {
 		return
 	}
 
-	err = h.services.Prescription.ArchiveForUser(c.Request.Context(), userID, prescriptionID)
+	err = h.services.Prescription.ArchiveForUser(c.Request.Context(), userProfile.UserID, prescriptionID)
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrPrescriptionNotFound):

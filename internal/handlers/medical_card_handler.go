@@ -22,7 +22,7 @@ import (
 // @Failure      401,500 {object} errorResponse
 // @Router       /medical-card/visits [get]
 func (h *Handler) getVisits(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
@@ -32,7 +32,7 @@ func (h *Handler) getVisits(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	params := models.PaginationParams{Page: page, Limit: limit, SortBy: "date", SortOrder: "desc"}
 
-	visits, err := h.services.MedicalCard.GetVisits(c.Request.Context(), userID, params)
+	visits, err := h.services.MedicalCard.GetVisits(c.Request.Context(), userProfile.UserID, params)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to get visits: "+err.Error())
 		return
@@ -51,13 +51,13 @@ func (h *Handler) getVisits(c *gin.Context) {
 // @Failure      401,500 {object} errorResponse
 // @Router       /medical-card/analyses [get]
 func (h *Handler) getAnalyses(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	status := c.Query("status")
-	analyses, err := h.services.MedicalCard.GetAnalyses(c.Request.Context(), userID, &status)
+	analyses, err := h.services.MedicalCard.GetAnalyses(c.Request.Context(), userProfile.UserID, &status)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to get analyses: "+err.Error())
 		return
@@ -75,12 +75,12 @@ func (h *Handler) getAnalyses(c *gin.Context) {
 // @Failure      401,500 {object} errorResponse
 // @Router       /medical-card/archive/prescriptions [get]
 func (h *Handler) getArchivedPrescriptions(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-	prescriptions, err := h.services.MedicalCard.GetArchivedPrescriptions(c.Request.Context(), userID)
+	prescriptions, err := h.services.MedicalCard.GetArchivedPrescriptions(c.Request.Context(), userProfile.UserID)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError,
 			"failed to get archived prescriptions: "+err.Error())
@@ -99,12 +99,12 @@ func (h *Handler) getArchivedPrescriptions(c *gin.Context) {
 // @Failure      401,500 {object} errorResponse
 // @Router       /medical-card/summary [get]
 func (h *Handler) getSummary(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-	summary, err := h.services.MedicalCard.GetSummary(c.Request.Context(), userID)
+	summary, err := h.services.MedicalCard.GetSummary(c.Request.Context(), userProfile.UserID)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to get summary: "+err.Error())
 		return
@@ -123,7 +123,7 @@ func (h *Handler) getSummary(c *gin.Context) {
 // @Failure      401,404,500 {object} errorResponse
 // @Router       /files/{id} [get]
 func (h *Handler) downloadFile(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
@@ -134,7 +134,7 @@ func (h *Handler) downloadFile(c *gin.Context) {
 		return
 	}
 
-	fileBytes, fileName, err := h.services.MedicalCard.DownloadFile(c.Request.Context(), userID, fileID)
+	fileBytes, fileName, err := h.services.MedicalCard.DownloadFile(c.Request.Context(), userProfile.UserID, fileID)
 	if err != nil {
 		newErrorResponse(c, http.StatusNotFound, "file not found: "+err.Error())
 		return
@@ -160,7 +160,7 @@ type archiveInput struct {
 // @Failure      400,401,404,500 {object} errorResponse
 // @Router       /medical-card/archive/prescriptions [post]
 func (h *Handler) archivePrescriptionFromCard(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
@@ -171,7 +171,7 @@ func (h *Handler) archivePrescriptionFromCard(c *gin.Context) {
 		return
 	}
 
-	err = h.services.MedicalCard.ArchivePrescription(c.Request.Context(), userID,
+	err = h.services.MedicalCard.ArchivePrescription(c.Request.Context(), userProfile.UserID,
 		input.PrescriptionID)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError,

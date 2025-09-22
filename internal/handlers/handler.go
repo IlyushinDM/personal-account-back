@@ -4,6 +4,7 @@
 package handlers
 
 import (
+	"lk/internal/repository"
 	"lk/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -17,12 +18,14 @@ import (
 // Handler - это контейнер для всех зависимостей слоя обработчиков.
 type Handler struct {
 	services *services.Service
+	userRepo repository.UserRepository
 }
 
 // NewHandler создает новый экземпляр обработчика.
-func NewHandler(services *services.Service) *Handler {
+func NewHandler(services *services.Service, userRepo repository.UserRepository) *Handler {
 	return &Handler{
 		services: services,
+		userRepo: userRepo,
 	}
 }
 
