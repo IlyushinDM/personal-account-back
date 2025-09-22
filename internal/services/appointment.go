@@ -104,12 +104,12 @@ func (s *appointmentService) GetAvailableSlots(ctx context.Context, doctorID, se
 		return models.AvailableSlotsResponse{}, err
 	}
 
-	// 2. Получить длительность услуги
-	duration, err := s.repo.GetServiceDurationMinutes(ctx, serviceID)
+	// 2. Получить длительность запрашиваемой услуги
+	requestedServiceDuration, err := s.repo.GetServiceDurationMinutes(ctx, serviceID)
 	if err != nil {
 		return models.AvailableSlotsResponse{}, fmt.Errorf("could not get service duration: %w", err)
 	}
-	serviceDuration := time.Duration(duration) * time.Minute
+	slotStep := time.Duration(requestedServiceDuration) * time.Minute
 
 	// 3. Получить все уже существующие записи на этот день
 	existingAppointments, err := s.repo.GetAppointmentsByDoctorAndDate(ctx, doctorID, date)
@@ -117,19 +117,43 @@ func (s *appointmentService) GetAvailableSlots(ctx context.Context, doctorID, se
 		return models.AvailableSlotsResponse{}, err
 	}
 
-	// 4. Вычислить доступные слоты
+	// 4. Предзагружаем длительности всех услуг для существующих записей (оптимизация)
+	var existingServiceIDs []uint64
+	if len(existingAppointments) > 0 {
+		// Собираем уникальные ID услуг
+		serviceIDSet := make(map[uint64]struct{})
+		for _, app := range existingAppointments {
+			if _, ok := serviceIDSet[app.ServiceID]; !ok {
+				serviceIDSet[app.ServiceID] = struct{}{}
+				existingServiceIDs = append(existingServiceIDs, app.ServiceID)
+			}
+		}
+	}
+
+	// Делаем один запрос в БД, чтобы получить все нужные длительности
+	existingServices, err := s.repo.GetServicesByIDs(ctx, existingServiceIDs)
+	if err != nil {
+		return models.AvailableSlotsResponse{}, fmt.Errorf("could not get existing services info: %w", err)
+	}
+
+	// Создаем мапу для быстрого доступа к длительности
+	serviceDurations := make(map[uint64]time.Duration)
+	for _, service := range existingServices {
+		serviceDurations[service.ID] = time.Duration(service.DurationMinutes) * time.Minute
+	}
+
+	// 5. Вычислить доступные слоты
 	var availableSlots []string
-	// Устанавливаем дату для времени начала и конца работы
 	loc, _ := time.LoadLocation("UTC") // или другой нужный
 	startTime := time.Date(date.Year(), date.Month(), date.Day(), schedule.StartTime.Hour(),
 		schedule.StartTime.Minute(), 0, 0, loc)
 	endTime := time.Date(date.Year(), date.Month(), date.Day(), schedule.EndTime.Hour(),
 		schedule.EndTime.Minute(), 0, 0, loc)
 
-	// Итерируемся по рабочему времени с шагом, равным длительности услуги
-	for slotStart := startTime; slotStart.Add(serviceDuration).Before(endTime) ||
-		slotStart.Add(serviceDuration).Equal(endTime); slotStart = slotStart.Add(serviceDuration) {
-		slotEnd := slotStart.Add(serviceDuration)
+	// Итерируемся по рабочему времени с шагом, равным длительности запрашиваемой услуги
+	for slotStart := startTime; slotStart.Add(slotStep).Before(endTime) ||
+		slotStart.Add(slotStep).Equal(endTime); slotStart = slotStart.Add(slotStep) {
+		slotEnd := slotStart.Add(slotStep)
 		isAvailable := true
 
 		// Проверяем, не пересекается ли текущий слот с существующими записями
@@ -137,8 +161,9 @@ func (s *appointmentService) GetAvailableSlots(ctx context.Context, doctorID, se
 			appTime, _ := time.Parse("15:04", app.AppointmentTime)
 			appStart := time.Date(date.Year(), date.Month(), date.Day(), appTime.Hour(),
 				appTime.Minute(), 0, 0, loc)
-			appServiceDuration, _ := s.repo.GetServiceDurationMinutes(ctx, app.ServiceID)
-			appEnd := appStart.Add(time.Duration(appServiceDuration) * time.Minute)
+
+			// Берем длительность из мапы, а не из БД
+			appEnd := appStart.Add(serviceDurations[app.ServiceID])
 
 			// Проверка пересечения интервалов: (StartA < EndB) and (EndA > StartB)
 			if slotStart.Before(appEnd) && slotEnd.After(appStart) {

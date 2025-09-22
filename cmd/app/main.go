@@ -110,7 +110,7 @@ func main() {
 	}
 	logger.Default().Info("соединение с MinIO установлено")
 
-	// Инициализируем слои приложения
+	// Инициализируем слои приложения (репозиторий, сервисы, обработчики).
 	repos := repository.NewRepository(DB, redisClient)
 	serviceDeps := services.ServiceDependencies{
 		Repos:      repos,
@@ -123,11 +123,13 @@ func main() {
 	handlers := handlers.NewHandler(services)
 	logger.Default().Info("слои приложения инициализированы")
 
-	// Инициализируем роутер
-	r := gin.New()
-	r.Use(logger.GinLogger(), gin.Recovery())
+	// Инициализируем роутер и применяем глобальные middleware
+	router := gin.New()
+	router.Use(logger.GinLogger(), gin.Recovery())
 
-	router := handlers.InitRoutes()
+	// Наполняем роутер эндпоинтами
+	handlers.InitRoutes(router)
+
 	// Запускаем HTTP-сервер в отдельной горутине.
 	srv := new(server.Server)
 	go func() {
@@ -138,12 +140,11 @@ func main() {
 	}()
 	log.Printf("сервер запущен на порту: %s", cfg.HTTPServer.Port)
 
-	// Настраиваем graceful shutdown (плавное завершение работы).
+	// Настраиваем graceful shutdown.
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 	<-quit
 
-	// При получении сигнала начинаем процесс остановки сервера.
 	logger.Default().Info("сервер выключается")
 	if err := srv.Shutdown(context.Background()); err != nil {
 		logger.Default().WithError(err).Fatal("произошла ошибка при выключении сервера")

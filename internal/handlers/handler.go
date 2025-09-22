@@ -26,13 +26,8 @@ func NewHandler(services *services.Service) *Handler {
 	}
 }
 
-// InitRoutes настраивает и возвращает роутер Gin со всеми эндпоинтами приложения.
-func (h *Handler) InitRoutes() *gin.Engine {
-	router := gin.New()
-
-	// Подключаем middleware для перехвата паник и возврата 500 ошибки.
-	router.Use(gin.Recovery())
-
+// InitRoutes настраивает переданный роутер Gin, добавляя в него все эндпоинты приложения.
+func (h *Handler) InitRoutes(router *gin.Engine) {
 	// Эндпоинт для Swagger UI
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
@@ -123,5 +118,4 @@ func (h *Handler) InitRoutes() *gin.Engine {
 			authorized.GET("/files/:id", h.downloadFile)
 		}
 	}
-	return router
 }
