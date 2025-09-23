@@ -1,7 +1,7 @@
-// Package handlers определяет HTTP-слой приложения (API).
+// Package http определяет HTTP-слой приложения (API).
 // Он отвечает за обработку входящих запросов, вызов соответствующих сервисов
 // и форматирование ответов для отправки клиенту.
-package handlers
+package http
 
 import (
 	"lk/internal/repository"
@@ -94,6 +94,7 @@ func (h *Handler) InitRoutes(router *gin.Engine) {
 				appointments.DELETE("/:id", h.cancelAppointment)
 				appointments.GET("/available-dates", h.getAvailableDates)
 				appointments.GET("/available-slots", h.getAvailableSlots)
+				appointments.GET("/slots-by-range", h.getAvailableSlotsByRange)
 			}
 
 			// --- НАЗНАЧЕНИЯ (FR-2.x) ---

@@ -21,6 +21,10 @@ type Authorization interface {
 	Logout(ctx context.Context, refreshToken string) error
 	ForgotPassword(ctx context.Context, phone string) error
 	ResetPassword(ctx context.Context, phone, code, newPassword string) error
+
+	// TODO: FR-1.3, FR-1.4 - Добавить методы для работы с Госуслугами
+	// GetGosuslugiAuthURL(state string) (string, error)
+	// AuthorizeGosuslugi(ctx context.Context, gosuslugiCode, state string) (map[string]string, error)
 }
 
 // UserService определяет методы для работы с данными пользователя.
@@ -55,6 +59,8 @@ type AppointmentService interface {
 		models.AvailableDatesResponse, error)
 	GetAvailableSlots(ctx context.Context, doctorID, serviceID uint64, date string) (
 		models.AvailableSlotsResponse, error)
+	GetAvailableSlotsByRange(ctx context.Context, doctorID, serviceID uint64, startDate, endDate string) (
+		models.AvailableRangeSlotsResponse, error)
 	GetUpcomingForUser(ctx context.Context, userID uint64) ([]models.Appointment, error)
 }
 

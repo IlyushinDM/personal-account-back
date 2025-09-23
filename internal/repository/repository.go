@@ -59,6 +59,8 @@ type AppointmentRepository interface {
 	GetServiceDurationMinutes(ctx context.Context, serviceID uint64) (uint16, error)
 	GetAppointmentsByDoctorAndDate(ctx context.Context, doctorID uint64, date time.Time) ([]models.Appointment, error)
 	GetServicesByIDs(ctx context.Context, serviceIDs []uint64) ([]models.Service, error)
+	GetAppointmentsByDoctorAndDateRange(ctx context.Context, doctorID uint64, startDate, endDate time.Time) ([]models.Appointment, error)
+	GetDoctorScheduleForDateRange(ctx context.Context, doctorID uint64, startDate, endDate time.Time) ([]models.Schedule, error)
 }
 
 // DirectoryRepository определяет методы для работы со справочниками.

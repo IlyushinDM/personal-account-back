@@ -22,13 +22,13 @@ import (
 	"gorm.io/gorm"
 
 	"lk/internal/config"
-	"lk/internal/handlers"
 	"lk/internal/logger"
 	"lk/internal/models"
 	"lk/internal/repository"
 	"lk/internal/server"
 	"lk/internal/services"
 	"lk/internal/storage"
+	httptransport "lk/internal/transport/http"
 )
 
 // @title API Личного Кабинета
@@ -123,12 +123,12 @@ func main() {
 	}
 	services := services.NewService(serviceDeps)
 
-	handler := handlers.NewHandler(services, repos.User)
+	handler := httptransport.NewHandler(services, repos.User)
 	logger.Default().Info("слои приложения инициализированы")
 
 	// 4. Инициализация HTTP-роутера и middleware
 	router := gin.New()
-	router.Use(logger.GinLogger(), gin.Recovery(), handlers.ErrorMiddleware())
+	router.Use(logger.GinLogger(), gin.Recovery(), httptransport.ErrorMiddleware())
 	handler.InitRoutes(router)
 
 	// 5. Запуск HTTP-сервера с Graceful Shutdown

@@ -39,6 +39,30 @@ func (r *AppointmentPostgres) GetAppointmentsByDoctorAndDate(
 	return appointments, err
 }
 
+// GetAppointmentsByDoctorAndDateRange получает все записи к врачу в диапазоне дат.
+func (r *AppointmentPostgres) GetAppointmentsByDoctorAndDateRange(
+	ctx context.Context, doctorID uint64, startDate, endDate time.Time,
+) ([]models.Appointment, error) {
+	var appointments []models.Appointment
+	err := r.db.WithContext(ctx).Where(
+		"doctor_id = ? AND appointment_date BETWEEN ? AND ?",
+		doctorID, startDate, endDate,
+	).Find(&appointments).Error
+	return appointments, err
+}
+
+// GetDoctorScheduleForDateRange получает все расписания врача в диапазоне дат.
+func (r *AppointmentPostgres) GetDoctorScheduleForDateRange(
+	ctx context.Context, doctorID uint64, startDate, endDate time.Time,
+) ([]models.Schedule, error) {
+	var schedules []models.Schedule
+	err := r.db.WithContext(ctx).Where(
+		"doctor_id = ? AND date BETWEEN ? AND ?",
+		doctorID, startDate, endDate,
+	).Order("date ASC").Find(&schedules).Error
+	return schedules, err
+}
+
 // GetServiceDurationMinutes получает длительность услуги в минутах.
 func (r *AppointmentPostgres) GetServiceDurationMinutes(ctx context.Context, serviceID uint64) (uint16, error) {
 	var service models.Service
