@@ -1,12 +1,12 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 
-	_ "lk/internal/models"
 	"lk/internal/services"
+
+	_ "lk/internal/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,20 +18,18 @@ import (
 // @Id           get-active-prescriptions
 // @Produce      json
 // @Success      200 {array} models.Prescription
-// @Failure      401 {object} errorResponse "Пользователь не авторизован"
-// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Failure      401,500 {object} errorResponse
 // @Router       /prescriptions/active [get]
 func (h *Handler) getActivePrescriptions(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
+		c.Error(services.NewInternalServerError("failed to get user from context", err))
 		return
 	}
 
-	prescriptions, err := h.services.Prescription.GetActiveForUser(c.Request.Context(), userID)
+	prescriptions, err := h.services.Prescription.GetActiveForUser(c.Request.Context(), userProfile.UserID)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError,
-			"failed to get active prescriptions: "+err.Error())
+		c.Error(err)
 		return
 	}
 	c.JSON(http.StatusOK, prescriptions)
@@ -45,36 +43,25 @@ func (h *Handler) getActivePrescriptions(c *gin.Context) {
 // @Produce      json
 // @Param        id path int true "ID Назначения"
 // @Success      200 {object} statusResponse
-// @Failure      400 {object} errorResponse "Неверный формат ID"
-// @Failure      403 {object} errorResponse "Нет прав на архивацию этого назначения"
-// @Failure      404 {object} errorResponse "Назначение не найдено"
-// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Failure      400,401,403,404,500 {object} errorResponse
 // @Router       /prescriptions/{id}/archive [post]
 func (h *Handler) archivePrescription(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "failed to get user ID from context")
+		c.Error(services.NewInternalServerError("failed to get user from context", err))
 		return
 	}
 
 	idStr := c.Param("id")
 	prescriptionID, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		newErrorResponse(c, http.StatusBadRequest, "invalid prescription ID format")
+		c.Error(services.NewBadRequestError("invalid prescription ID format", err))
 		return
 	}
 
-	err = h.services.Prescription.ArchiveForUser(c.Request.Context(), userID, prescriptionID)
+	err = h.services.Prescription.ArchiveForUser(c.Request.Context(), userProfile.UserID, prescriptionID)
 	if err != nil {
-		switch {
-		case errors.Is(err, services.ErrPrescriptionNotFound):
-			newErrorResponse(c, http.StatusNotFound, err.Error())
-		case errors.Is(err, services.ErrForbidden):
-			newErrorResponse(c, http.StatusForbidden, err.Error())
-		default:
-			newErrorResponse(c, http.StatusInternalServerError,
-				"failed to archive prescription: "+err.Error())
-		}
+		c.Error(err)
 		return
 	}
 

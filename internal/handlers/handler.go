@@ -4,6 +4,7 @@
 package handlers
 
 import (
+	"lk/internal/repository"
 	"lk/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -17,22 +18,19 @@ import (
 // Handler - это контейнер для всех зависимостей слоя обработчиков.
 type Handler struct {
 	services *services.Service
+	userRepo repository.UserRepository // Зависимость для middleware
 }
 
 // NewHandler создает новый экземпляр обработчика.
-func NewHandler(services *services.Service) *Handler {
+func NewHandler(services *services.Service, userRepo repository.UserRepository) *Handler {
 	return &Handler{
 		services: services,
+		userRepo: userRepo,
 	}
 }
 
-// InitRoutes настраивает и возвращает роутер Gin со всеми эндпоинтами приложения.
-func (h *Handler) InitRoutes() *gin.Engine {
-	router := gin.New()
-
-	// Подключаем middleware для перехвата паник и возврата 500 ошибки.
-	router.Use(gin.Recovery())
-
+// InitRoutes настраивает переданный роутер Gin, добавляя в него все эндпоинты приложения.
+func (h *Handler) InitRoutes(router *gin.Engine) {
 	// Эндпоинт для Swagger UI
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
@@ -44,14 +42,10 @@ func (h *Handler) InitRoutes() *gin.Engine {
 		{
 			auth.POST("/register", h.signUp)
 			auth.POST("/login", h.signIn)
-
-			// Эндпоинты для refresh токенов и восстановления пароля
 			auth.POST("/refresh", h.refresh)
 			auth.POST("/logout", h.logout)
 			auth.POST("/forgot-password", h.forgotPassword)
 			auth.POST("/reset-password", h.resetPassword)
-
-			// Заглушки для Госуслуг
 			auth.GET("/gosuslugi", h.gosuslugiLogin)
 			auth.POST("/gosuslugi/callback", h.gosuslugiCallback)
 		}
@@ -123,5 +117,4 @@ func (h *Handler) InitRoutes() *gin.Engine {
 			authorized.GET("/files/:id", h.downloadFile)
 		}
 	}
-	return router
 }

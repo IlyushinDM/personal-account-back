@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"lk/internal/models"
+	"lk/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,9 +23,9 @@ import (
 // @Failure      401,500 {object} errorResponse
 // @Router       /medical-card/visits [get]
 func (h *Handler) getVisits(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.Error(services.NewInternalServerError("failed to get user from context", err))
 		return
 	}
 
@@ -32,9 +33,9 @@ func (h *Handler) getVisits(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	params := models.PaginationParams{Page: page, Limit: limit, SortBy: "date", SortOrder: "desc"}
 
-	visits, err := h.services.MedicalCard.GetVisits(c.Request.Context(), userID, params)
+	visits, err := h.services.MedicalCard.GetVisits(c.Request.Context(), userProfile.UserID, params)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "failed to get visits: "+err.Error())
+		c.Error(err)
 		return
 	}
 	c.JSON(http.StatusOK, visits)
@@ -51,15 +52,21 @@ func (h *Handler) getVisits(c *gin.Context) {
 // @Failure      401,500 {object} errorResponse
 // @Router       /medical-card/analyses [get]
 func (h *Handler) getAnalyses(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.Error(services.NewInternalServerError("failed to get user from context", err))
 		return
 	}
+
 	status := c.Query("status")
-	analyses, err := h.services.MedicalCard.GetAnalyses(c.Request.Context(), userID, &status)
+	var statusPtr *string
+	if status != "" {
+		statusPtr = &status
+	}
+
+	analyses, err := h.services.MedicalCard.GetAnalyses(c.Request.Context(), userProfile.UserID, statusPtr)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "failed to get analyses: "+err.Error())
+		c.Error(err)
 		return
 	}
 	c.JSON(http.StatusOK, analyses)
@@ -75,15 +82,14 @@ func (h *Handler) getAnalyses(c *gin.Context) {
 // @Failure      401,500 {object} errorResponse
 // @Router       /medical-card/archive/prescriptions [get]
 func (h *Handler) getArchivedPrescriptions(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.Error(services.NewInternalServerError("failed to get user from context", err))
 		return
 	}
-	prescriptions, err := h.services.MedicalCard.GetArchivedPrescriptions(c.Request.Context(), userID)
+	prescriptions, err := h.services.MedicalCard.GetArchivedPrescriptions(c.Request.Context(), userProfile.UserID)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError,
-			"failed to get archived prescriptions: "+err.Error())
+		c.Error(err)
 		return
 	}
 	c.JSON(http.StatusOK, prescriptions)
@@ -99,14 +105,14 @@ func (h *Handler) getArchivedPrescriptions(c *gin.Context) {
 // @Failure      401,500 {object} errorResponse
 // @Router       /medical-card/summary [get]
 func (h *Handler) getSummary(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.Error(services.NewInternalServerError("failed to get user from context", err))
 		return
 	}
-	summary, err := h.services.MedicalCard.GetSummary(c.Request.Context(), userID)
+	summary, err := h.services.MedicalCard.GetSummary(c.Request.Context(), userProfile.UserID)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "failed to get summary: "+err.Error())
+		c.Error(err)
 		return
 	}
 	c.JSON(http.StatusOK, summary)
@@ -115,28 +121,28 @@ func (h *Handler) getSummary(c *gin.Context) {
 // @Summary      Скачать файл
 // @Security     ApiKeyAuth
 // @Tags         medical-card
-// @Description  Скачивает файл результата анализа или визита.
+// @Description  Скачивает файл результата анализа или визита. ID файла = ID анализа.
 // @Id           download-file
 // @Produce      application/octet-stream
-// @Param        id path int true "ID файла"
+// @Param        id path int true "ID анализа, к которому прикреплен файл"
 // @Success      200 {file} file
-// @Failure      401,404,500 {object} errorResponse
+// @Failure      400,401,403,404,500 {object} errorResponse
 // @Router       /files/{id} [get]
 func (h *Handler) downloadFile(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.Error(services.NewInternalServerError("failed to get user from context", err))
 		return
 	}
 	fileID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		newErrorResponse(c, http.StatusBadRequest, "invalid file id")
+		c.Error(services.NewBadRequestError("invalid file id format", err))
 		return
 	}
 
-	fileBytes, fileName, err := h.services.MedicalCard.DownloadFile(c.Request.Context(), userID, fileID)
+	fileBytes, fileName, err := h.services.MedicalCard.DownloadFile(c.Request.Context(), userProfile.UserID, fileID)
 	if err != nil {
-		newErrorResponse(c, http.StatusNotFound, "file not found: "+err.Error())
+		c.Error(err)
 		return
 	}
 
@@ -157,25 +163,24 @@ type archiveInput struct {
 // @Produce      json
 // @Param        input body archiveInput true "ID Назначения"
 // @Success      200 {object} statusResponse
-// @Failure      400,401,404,500 {object} errorResponse
+// @Failure      400,401,403,404,500 {object} errorResponse
 // @Router       /medical-card/archive/prescriptions [post]
 func (h *Handler) archivePrescriptionFromCard(c *gin.Context) {
-	userID, err := getUserID(c)
+	userProfile, err := getUserProfile(c)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.Error(services.NewInternalServerError("failed to get user from context", err))
 		return
 	}
 	var input archiveInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		newErrorResponse(c, http.StatusBadRequest, "invalid input: "+err.Error())
+		c.Error(services.NewBadRequestError("invalid input", err))
 		return
 	}
 
-	err = h.services.MedicalCard.ArchivePrescription(c.Request.Context(), userID,
+	err = h.services.MedicalCard.ArchivePrescription(c.Request.Context(), userProfile.UserID,
 		input.PrescriptionID)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError,
-			"failed to archive prescription: "+err.Error())
+		c.Error(err)
 		return
 	}
 	c.JSON(http.StatusOK, statusResponse{Status: "prescription archived successfully"})

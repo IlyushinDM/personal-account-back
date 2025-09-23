@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
 
 	"lk/internal/services"
@@ -27,27 +26,19 @@ type signUpInput struct {
 // @Produce      json
 // @Param        input body signUpInput true "Информация для регистрации"
 // @Success      201 {object} map[string]string "Возвращает accessToken и refreshToken"
-// @Failure      400,409 {object} errorResponse "Ошибка валидации или пользователь уже существует"
-// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Failure      400,409,500 {object} errorResponse
 // @Router       /auth/register [post]
 func (h *Handler) signUp(c *gin.Context) {
 	var input signUpInput
-
 	if err := c.ShouldBindJSON(&input); err != nil {
-		newErrorResponse(c, http.StatusBadRequest, "invalid input body: "+err.Error())
+		c.Error(services.NewBadRequestError("invalid input body", err))
 		return
 	}
 
-	// Вызываем сервис для создания пользователя и получения токенов
 	tokens, err := h.services.Authorization.CreateUser(c.Request.Context(), input.Phone,
-		input.Password,
-		input.FullName, input.Gender, input.BirthDate, input.CityID)
+		input.Password, input.FullName, input.Gender, input.BirthDate, input.CityID)
 	if err != nil {
-		if errors.Is(err, services.ErrUserExists) {
-			newErrorResponse(c, http.StatusConflict, err.Error())
-			return
-		}
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.Error(err)
 		return
 	}
 
@@ -68,25 +59,19 @@ type signInInput struct {
 // @Produce      json
 // @Param        input body signInInput true "Учетные данные для входа"
 // @Success      200 {object} map[string]string "Возвращает accessToken и refreshToken"
-// @Failure      400,401 {object} errorResponse "Ошибка валидации или неверные учетные данные"
-// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Failure      400,401,500 {object} errorResponse
 // @Router       /auth/login [post]
 func (h *Handler) signIn(c *gin.Context) {
 	var input signInInput
-
 	if err := c.ShouldBindJSON(&input); err != nil {
-		newErrorResponse(c, http.StatusBadRequest, "invalid input body: "+err.Error())
+		c.Error(services.NewBadRequestError("invalid input body", err))
 		return
 	}
 
 	tokens, err := h.services.Authorization.GenerateToken(c.Request.Context(),
 		input.Phone, input.Password)
 	if err != nil {
-		if errors.Is(err, services.ErrInvalidCredentials) {
-			newErrorResponse(c, http.StatusUnauthorized, err.Error())
-			return
-		}
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.Error(err)
 		return
 	}
 
@@ -105,18 +90,18 @@ type refreshInput struct {
 // @Produce      json
 // @Param        input body refreshInput true "Refresh токен"
 // @Success      200 {object} map[string]string "Возвращает accessToken и refreshToken"
-// @Failure      400,401 {object} errorResponse "Ошибка валидации или невалидный refresh токен"
+// @Failure      400,401 {object} errorResponse
 // @Router       /auth/refresh [post]
 func (h *Handler) refresh(c *gin.Context) {
 	var input refreshInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		newErrorResponse(c, http.StatusBadRequest, "invalid input body: "+err.Error())
+		c.Error(services.NewBadRequestError("invalid input body", err))
 		return
 	}
 
 	tokens, err := h.services.Authorization.RefreshToken(c.Request.Context(), input.RefreshToken)
 	if err != nil {
-		newErrorResponse(c, http.StatusUnauthorized, err.Error())
+		c.Error(err)
 		return
 	}
 
@@ -131,17 +116,17 @@ func (h *Handler) refresh(c *gin.Context) {
 // @Produce      json
 // @Param        input body refreshInput true "Refresh токен"
 // @Success      200 {object} statusResponse "Статус операции"
-// @Failure      400,401 {object} errorResponse "Ошибка валидации или невалидный refresh токен"
+// @Failure      400,401,500 {object} errorResponse
 // @Router       /auth/logout [post]
 func (h *Handler) logout(c *gin.Context) {
 	var input refreshInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		newErrorResponse(c, http.StatusBadRequest, "invalid input body: "+err.Error())
+		c.Error(services.NewBadRequestError("invalid input body", err))
 		return
 	}
 
 	if err := h.services.Authorization.Logout(c.Request.Context(), input.RefreshToken); err != nil {
-		newErrorResponse(c, http.StatusUnauthorized, err.Error())
+		c.Error(err)
 		return
 	}
 
@@ -165,12 +150,12 @@ type forgotPasswordInput struct {
 func (h *Handler) forgotPassword(c *gin.Context) {
 	var input forgotPasswordInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		newErrorResponse(c, http.StatusBadRequest, "invalid input body: "+err.Error())
+		c.Error(services.NewBadRequestError("invalid input body", err))
 		return
 	}
 
 	if err := h.services.Authorization.ForgotPassword(c.Request.Context(), input.Phone); err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.Error(err)
 		return
 	}
 
@@ -191,23 +176,19 @@ type resetPasswordInput struct {
 // @Produce      json
 // @Param        input body resetPasswordInput true "Данные для сброса"
 // @Success      200 {object} statusResponse
-// @Failure      400,401 {object} errorResponse "Неверный код или другие ошибки"
+// @Failure      400,401,500 {object} errorResponse
 // @Router       /auth/reset-password [post]
 func (h *Handler) resetPassword(c *gin.Context) {
 	var input resetPasswordInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		newErrorResponse(c, http.StatusBadRequest, "invalid input body: "+err.Error())
+		c.Error(services.NewBadRequestError("invalid input body", err))
 		return
 	}
 
 	err := h.services.Authorization.ResetPassword(c.Request.Context(), input.Phone, input.Code,
 		input.NewPassword)
 	if err != nil {
-		if errors.Is(err, services.ErrCodeMismatch) {
-			newErrorResponse(c, http.StatusUnauthorized, err.Error())
-			return
-		}
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		c.Error(err)
 		return
 	}
 
@@ -220,7 +201,7 @@ func (h *Handler) resetPassword(c *gin.Context) {
 // @Id           gosuslugi-login
 // @Router       /auth/gosuslugi [get]
 func (h *Handler) gosuslugiLogin(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, errorResponse{Message: "Not implemented yet"})
+	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
 // @Summary      Callback от Госуслуг (заглушка)
@@ -229,5 +210,5 @@ func (h *Handler) gosuslugiLogin(c *gin.Context) {
 // @Id           gosuslugi-callback
 // @Router       /auth/gosuslugi/callback [post]
 func (h *Handler) gosuslugiCallback(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, errorResponse{Message: "Not implemented yet"})
+	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }

@@ -1,30 +1,24 @@
 package handlers
 
 import (
-	"database/sql"
-	"errors"
 	"net/http"
 	"strconv"
 
 	"lk/internal/models"
+	"lk/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
 
 // findSpecialistsQuery - структура для валидации query-параметров при поиске и фильтрации врачей.
 type findSpecialistsQuery struct {
-	// Поиск по ФИО или названию специальности (FR-3.3a)
-	Query string `form:"q"`
-	// Поиск по названию услуги (FR-3.3c)
-	Service string `form:"service"`
-	// Фильтрация по ID специальности (FR-3.4)
+	Query       string `form:"q"`
+	Service     string `form:"service"`
 	SpecialtyID uint32 `form:"specialtyID"`
-
-	// Параметры пагинации и сортировки (используются только с specialtyID)
-	Page      int    `form:"page,default=1"`
-	Limit     int    `form:"limit,default=10"`
-	SortBy    string `form:"sortBy,default=rating"`
-	SortOrder string `form:"sortOrder,default=desc"`
+	Page        int    `form:"page,default=1"`
+	Limit       int    `form:"limit,default=10"`
+	SortBy      string `form:"sortBy,default=rating"`
+	SortOrder   string `form:"sortOrder,default=desc"`
 }
 
 // @Summary      Найти или отфильтровать специалистов
@@ -42,14 +36,12 @@ type findSpecialistsQuery struct {
 // @Param        sortOrder query string false "Порядок сортировки: 'asc', 'desc' (используется с 'specialtyID')" Enums(asc, desc) default(desc)
 // @Success      200 {object} models.PaginatedDoctorsResponse "Возвращается при использовании 'specialtyID'"
 // @Success      200 {array} models.Doctor "Возвращается при использовании 'q' или 'service'"
-// @Failure      400 {object} errorResponse "Неверные параметры запроса или не указан ни один параметр"
-// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Failure      400,401,500 {object} errorResponse
 // @Router       /specialists [get]
 func (h *Handler) findSpecialists(c *gin.Context) {
 	var queryParams findSpecialistsQuery
-
 	if err := c.ShouldBindQuery(&queryParams); err != nil {
-		newErrorResponse(c, http.StatusBadRequest, "Invalid query parameters: "+err.Error())
+		c.Error(services.NewBadRequestError("Invalid query parameters", err))
 		return
 	}
 
@@ -59,8 +51,7 @@ func (h *Handler) findSpecialists(c *gin.Context) {
 	if queryParams.Query != "" {
 		doctors, err := h.services.Doctor.SearchDoctors(ctx, queryParams.Query)
 		if err != nil {
-			newErrorResponse(c, http.StatusInternalServerError,
-				"Failed to search doctors by query: "+err.Error())
+			c.Error(err)
 			return
 		}
 		c.JSON(http.StatusOK, doctors)
@@ -70,8 +61,7 @@ func (h *Handler) findSpecialists(c *gin.Context) {
 	if queryParams.Service != "" {
 		doctors, err := h.services.Doctor.SearchDoctorsByService(ctx, queryParams.Service)
 		if err != nil {
-			newErrorResponse(c, http.StatusInternalServerError,
-				"Failed to search doctors by service: "+err.Error())
+			c.Error(err)
 			return
 		}
 		c.JSON(http.StatusOK, doctors)
@@ -85,20 +75,16 @@ func (h *Handler) findSpecialists(c *gin.Context) {
 			SortBy:    queryParams.SortBy,
 			SortOrder: queryParams.SortOrder,
 		}
-
-		paginatedResponse, err := h.services.Doctor.GetDoctorsBySpecialty(
-			ctx, queryParams.SpecialtyID, paginationParams)
+		paginatedResponse, err := h.services.Doctor.GetDoctorsBySpecialty(ctx, queryParams.SpecialtyID, paginationParams)
 		if err != nil {
-			newErrorResponse(c, http.StatusInternalServerError,
-				"Failed to get doctors by specialty: "+err.Error())
+			c.Error(err)
 			return
 		}
 		c.JSON(http.StatusOK, paginatedResponse)
 		return
 	}
 
-	newErrorResponse(c, http.StatusBadRequest,
-		"At least one query parameter ('q', 'service', or 'specialtyID') is required")
+	c.Error(services.NewBadRequestError("At least one query parameter ('q', 'service', or 'specialtyID') is required", nil))
 }
 
 // @Summary      Получить специалиста по ID
@@ -109,26 +95,19 @@ func (h *Handler) findSpecialists(c *gin.Context) {
 // @Produce      json
 // @Param        id path int true "ID Специалиста"
 // @Success      200 {object} models.Doctor
-// @Failure      400 {object} errorResponse "Неверный формат ID"
-// @Failure      404 {object} errorResponse "Специалист не найден"
-// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Failure      400,401,404,500 {object} errorResponse
 // @Router       /specialists/{id} [get]
 func (h *Handler) getSpecialistByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		newErrorResponse(c, http.StatusBadRequest, "Invalid specialist ID format")
+		c.Error(services.NewBadRequestError("Invalid specialist ID format", err))
 		return
 	}
 
 	doctor, err := h.services.Doctor.GetDoctorByID(c.Request.Context(), id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			newErrorResponse(c, http.StatusNotFound, "doctor with this ID not found")
-			return
-		}
-		newErrorResponse(c, http.StatusInternalServerError,
-			"Failed to get doctor details: "+err.Error())
+		c.Error(err)
 		return
 	}
 
@@ -143,26 +122,19 @@ func (h *Handler) getSpecialistByID(c *gin.Context) {
 // @Produce      json
 // @Param        id path int true "ID Специалиста"
 // @Success      200 {object} models.Recommendation
-// @Failure      400 {object} errorResponse "Неверный формат ID"
-// @Failure      404 {object} errorResponse "Специалист не найден"
-// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Failure      400,401,404,500 {object} errorResponse
 // @Router       /specialists/{id}/recommendations [get]
 func (h *Handler) getSpecialistRecommendations(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		newErrorResponse(c, http.StatusBadRequest, "Invalid specialist ID format")
+		c.Error(services.NewBadRequestError("Invalid specialist ID format", err))
 		return
 	}
 
 	recommendations, err := h.services.Doctor.GetSpecialistRecommendations(c.Request.Context(), id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			newErrorResponse(c, http.StatusNotFound, "specialist with this ID not found")
-			return
-		}
-		newErrorResponse(c, http.StatusInternalServerError,
-			"Failed to get recommendations: "+err.Error())
+		c.Error(err)
 		return
 	}
 
@@ -177,22 +149,19 @@ func (h *Handler) getSpecialistRecommendations(c *gin.Context) {
 // @Produce      json
 // @Param        id path int true "ID Услуги"
 // @Success      200 {object} models.Recommendation
-// @Failure      400 {object} errorResponse "Неверный формат ID"
-// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Failure      400,401,500 {object} errorResponse
 // @Router       /services/{id}/recommendations [get]
 func (h *Handler) getServiceRecommendations(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		newErrorResponse(c, http.StatusBadRequest, "Invalid service ID format")
+		c.Error(services.NewBadRequestError("Invalid service ID format", err))
 		return
 	}
 
 	recommendations, err := h.services.Info.GetServiceRecommendations(c.Request.Context(), id)
 	if err != nil {
-		// TODO: Здесь можно добавить обработку 404, если сервис вернет соответствующую ошибку
-		newErrorResponse(c, http.StatusInternalServerError,
-			"Failed to get service recommendations: "+err.Error())
+		c.Error(err)
 		return
 	}
 

@@ -23,13 +23,13 @@ func (s *directoryService) GetAllDepartmentsWithSpecialties(ctx context.Context)
 ) {
 	departments, err := s.repo.GetAllDepartments(ctx)
 	if err != nil {
-		return nil, err
+		return nil, NewInternalServerError("failed to get departments from db", err)
 	}
 
 	// Вызываем метод с nil, чтобы получить ВСЕ специальности без фильтрации.
 	specialties, err := s.repo.GetAllSpecialties(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, NewInternalServerError("failed to get specialties from db", err)
 	}
 
 	// Создаем мапу для быстрого доступа к специальностям по ID отделения.
@@ -58,5 +58,9 @@ func (s *directoryService) GetAllDepartmentsWithSpecialties(ctx context.Context)
 
 // GetSpecialties получает список специальностей, опционально фильтруя по отделению.
 func (s *directoryService) GetSpecialties(ctx context.Context, departmentID *uint32) ([]models.Specialty, error) {
-	return s.repo.GetAllSpecialties(ctx, departmentID)
+	specialties, err := s.repo.GetAllSpecialties(ctx, departmentID)
+	if err != nil {
+		return nil, NewInternalServerError("failed to get specialties from db", err)
+	}
+	return specialties, err
 }

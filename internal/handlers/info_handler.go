@@ -15,13 +15,12 @@ import (
 // @Id           get-clinic-info
 // @Produce      json
 // @Success      200 {object} models.ClinicInfo
-// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Failure      401,404,500 {object} errorResponse
 // @Router       /clinic-info [get]
 func (h *Handler) getClinicInfo(c *gin.Context) {
 	info, err := h.services.Info.GetClinicInfo(c.Request.Context())
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError,
-			"failed to get clinic info: "+err.Error())
+		c.Error(err)
 		return
 	}
 	c.JSON(http.StatusOK, info)
@@ -34,13 +33,12 @@ func (h *Handler) getClinicInfo(c *gin.Context) {
 // @Id           get-legal-documents
 // @Produce      json
 // @Success      200 {array} models.LegalDocument
-// @Failure      500 {object} errorResponse "Внутренняя ошибка сервера"
+// @Failure      401,500 {object} errorResponse
 // @Router       /legal/documents [get]
 func (h *Handler) getLegalDocuments(c *gin.Context) {
 	docs, err := h.services.Info.GetLegalDocuments(c.Request.Context())
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError,
-			"failed to get legal documents: "+err.Error())
+		c.Error(err)
 		return
 	}
 	c.JSON(http.StatusOK, docs)

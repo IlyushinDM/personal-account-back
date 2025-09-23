@@ -6,11 +6,13 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -63,72 +65,73 @@ type _ struct {
 }
 
 func main() {
-	// Загружаем переменные окружения из .env файла, если он существует.
+	// 1. Инициализация конфигурации и логгера
 	if err := godotenv.Load(); err != nil {
-		logger.Default().Warn("Файл .env не найден, используются системные переменные окружения")
+		log.Println("Файл .env не найден, используются системные переменные окружения")
 	}
 
 	logger.Init(os.Getenv("LOG_DIR"))
 	logger.Default().Info("логгер инициализирован")
 
-	// Инициализируем конфигурацию приложения.
 	cfg := config.MustLoad()
 
-	// Устанавливаем соединение с базой данных PostgreSQL.
-	DB, err := gorm.Open(postgres.Open(cfg.Database.URL), &gorm.Config{
+	location, err := time.LoadLocation(cfg.ClinicTimezone)
+	if err != nil {
+		logger.Default().WithError(err).Fatal("не удалось загрузить указанный часовой пояс")
+	}
+	logger.Default().Info(fmt.Sprintf("приложение работает в часовом поясе: %s", location.String()))
+
+	// 2. Инициализация клиентов к внешним системам (DB, Redis, S3)
+	gormDB, err := gorm.Open(postgres.Open(cfg.Database.URL), &gorm.Config{
 		Logger: logger.NewGORMLogger(),
 	})
 	if err != nil {
 		logger.Default().WithError(err).Fatal("не удалось подключиться к базе данных")
 	}
-
-	db, err := DB.DB()
+	db, err := gormDB.DB()
 	if err != nil {
 		logger.Default().WithError(err).Fatal("не удалось получить *sql.DB из gorm")
 	}
 	defer db.Close()
 	logger.Default().Info("соединение с базой данных установлено")
 
-	// Инициализируем клиент Redis
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     cfg.Redis.Addr,
 		Password: cfg.Redis.Password,
 		DB:       cfg.Redis.DB,
 	})
-
-	// Проверяем соединение с Redis
 	if _, err := redisClient.Ping(context.Background()).Result(); err != nil {
 		logger.Default().WithError(err).Fatal("не удалось подключиться к Redis")
 	}
 	defer redisClient.Close()
 	logger.Default().Info("соединение с Redis установлено")
 
-	// Инициализируем клиент MinIO
 	storageClient, err := storage.NewMinIOClient(cfg.Minio)
 	if err != nil {
 		logger.Default().WithError(err).Fatal("не удалось подключиться к MinIO")
 	}
 	logger.Default().Info("соединение с MinIO установлено")
 
-	// Инициализируем слои приложения
-	repos := repository.NewRepository(DB, redisClient)
+	// 3. Dependency Injection: собираем все зависимости
+	repos := repository.NewRepository(gormDB, redisClient)
 	serviceDeps := services.ServiceDependencies{
 		Repos:      repos,
 		Storage:    storageClient,
+		Location:   location,
 		SigningKey: cfg.Auth.JWTSecretKey,
 		TokenTTL:   cfg.Auth.TokenTTL,
 	}
-
 	services := services.NewService(serviceDeps)
-	handlers := handlers.NewHandler(services)
+
+	handler := handlers.NewHandler(services, repos.User)
 	logger.Default().Info("слои приложения инициализированы")
 
-	// Инициализируем роутер
-	r := gin.New()
-	r.Use(logger.GinLogger(), gin.Recovery())
+	// 4. Инициализация HTTP-роутера и middleware
+	router := gin.New()
+	router.Use(logger.GinLogger(), gin.Recovery(), handlers.ErrorMiddleware())
+	handler.InitRoutes(router)
 
-	router := handlers.InitRoutes()
-	// Запускаем HTTP-сервер в отдельной горутине.
+	// 5. Запуск HTTP-сервера с Graceful Shutdown
 	srv := new(server.Server)
 	go func() {
 		if err := srv.Run(cfg.HTTPServer.Port, router); err != nil &&
@@ -136,16 +139,17 @@ func main() {
 			logger.Default().WithError(err).Fatal("ошибка при запуске http-сервера")
 		}
 	}()
-	log.Printf("сервер запущен на порту: %s", cfg.HTTPServer.Port)
+	logger.Default().Info(fmt.Sprintf("сервер запущен на порту: %s", cfg.HTTPServer.Port))
 
-	// Настраиваем graceful shutdown (плавное завершение работы).
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 	<-quit
 
-	// При получении сигнала начинаем процесс остановки сервера.
 	logger.Default().Info("сервер выключается")
-	if err := srv.Shutdown(context.Background()); err != nil {
+	ctx, shutdown := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdown()
+
+	if err := srv.Shutdown(ctx); err != nil {
 		logger.Default().WithError(err).Fatal("произошла ошибка при выключении сервера")
 	}
 	logger.Sync()

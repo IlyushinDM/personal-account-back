@@ -20,13 +20,6 @@ import (
 	"gorm.io/gorm"
 )
 
-var (
-	ErrUserExists          = errors.New("user with this phone already exists")
-	ErrInvalidCredentials  = errors.New("invalid phone or password")
-	ErrInvalidRefreshToken = errors.New("invalid or expired refresh token")
-	ErrCodeMismatch        = errors.New("confirmation code is incorrect or expired")
-)
-
 const (
 	refreshTokenTTL = 72 * time.Hour
 	resetCodeTTL    = 5 * time.Minute
@@ -66,23 +59,19 @@ func NewAuthService(
 func (s *authService) CreateUser(ctx context.Context, phone, password, fullName, gender,
 	birthDateStr string, cityID uint32,
 ) (map[string]string, error) {
-	// 1. Проверяем, не существует ли уже пользователь с таким телефоном.
 	_, err := s.userRepo.GetUserByPhone(ctx, phone)
 	if err == nil {
-		return nil, ErrUserExists
+		return nil, NewConflictError("user with this phone already exists", nil)
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		log.Printf("ERROR: database error while checking user existence for phone %s: %v", phone, err)
-		return nil, fmt.Errorf("database error while checking user: %w", err)
+		return nil, NewInternalServerError("database error while checking user", err)
 	}
 
-	// 2. Хэшируем пароль.
 	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
-		return nil, err
+		return nil, NewInternalServerError("failed to hash password", err)
 	}
 
-	// 3. Готовим данные для профиля.
 	nameParts := strings.Fields(fullName)
 	var lastName, firstName, patronymic string
 	if len(nameParts) > 0 {
@@ -97,11 +86,10 @@ func (s *authService) CreateUser(ctx context.Context, phone, password, fullName,
 
 	birthDate, err := time.Parse("2006-01-02", birthDateStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid birth date format (expected YYYY-MM-DD): %w", err)
+		return nil, NewBadRequestError("invalid birth date format (expected YYYY-MM-DD)", err)
 	}
 
 	var userID uint64
-	// 4. Выполняем создание пользователя и профиля в одной транзакции.
 	err = s.transactor.WithinTransaction(ctx, func(tx *gorm.DB) error {
 		user := models.User{
 			Phone:        phone,
@@ -129,10 +117,9 @@ func (s *authService) CreateUser(ctx context.Context, phone, password, fullName,
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, NewInternalServerError("transaction failed on user creation", err)
 	}
 
-	// 5. Создаем сессию (пару токенов) для нового пользователя
 	return s.createSession(ctx, userID)
 }
 
@@ -141,13 +128,13 @@ func (s *authService) GenerateToken(ctx context.Context, phone, password string)
 	user, err := s.userRepo.GetUserByPhone(ctx, phone)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrInvalidCredentials
+			return nil, NewUnauthorizedError("invalid phone or password", nil)
 		}
-		return nil, err
+		return nil, NewInternalServerError("database error while getting user", err)
 	}
 
 	if err := utils.CheckPasswordHash(password, user.PasswordHash); err != nil {
-		return nil, ErrInvalidCredentials
+		return nil, NewUnauthorizedError("invalid phone or password", nil)
 	}
 
 	return s.createSession(ctx, user.ID)
@@ -155,29 +142,25 @@ func (s *authService) GenerateToken(ctx context.Context, phone, password string)
 
 // RefreshToken обновляет пару токенов, используя старый refresh-токен.
 func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (map[string]string, error) {
-	// Получаем userID из самого токена (предполагаем формат "userID.randomString")
 	parts := strings.Split(refreshToken, ".")
 	if len(parts) != 2 {
-		return nil, ErrInvalidRefreshToken
+		return nil, NewUnauthorizedError("invalid refresh token format", nil)
 	}
 	userID, err := utils.ParseUserID(parts[0])
 	if err != nil {
-		return nil, ErrInvalidRefreshToken
+		return nil, NewUnauthorizedError("invalid user id in refresh token", err)
 	}
 
-	// Получаем токен из БД
 	storedToken, err := s.tokenRepo.GetByUserID(ctx, userID)
 	if err != nil {
-		return nil, ErrInvalidRefreshToken
+		return nil, NewUnauthorizedError("refresh token not found or expired", err)
 	}
 
-	// Сравниваем хеши
 	refreshTokenHash := sha256.Sum256([]byte(refreshToken))
 	if base64.StdEncoding.EncodeToString(refreshTokenHash[:]) != storedToken.TokenHash {
-		return nil, ErrInvalidRefreshToken
+		return nil, NewUnauthorizedError("invalid refresh token", nil)
 	}
 
-	// Создаем новую сессию
 	return s.createSession(ctx, userID)
 }
 
@@ -185,29 +168,17 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (ma
 func (s *authService) Logout(ctx context.Context, refreshToken string) error {
 	parts := strings.Split(refreshToken, ".")
 	if len(parts) != 2 {
-		return ErrInvalidRefreshToken
+		return NewUnauthorizedError("invalid refresh token format", nil)
 	}
 	userID, err := utils.ParseUserID(parts[0])
 	if err != nil {
-		return ErrInvalidRefreshToken
+		return NewUnauthorizedError("invalid user id in refresh token", err)
 	}
 
-	// Дополнительная проверка, что токен валиден перед удалением
-	storedToken, err := s.tokenRepo.GetByUserID(ctx, userID)
-	if err != nil {
-		// Если токена и так нет, считаем, что пользователь уже вышел
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil
-		}
-		return ErrInvalidRefreshToken
+	if err := s.tokenRepo.Delete(ctx, userID); err != nil {
+		return NewInternalServerError("failed to logout", err)
 	}
-
-	refreshTokenHash := sha256.Sum256([]byte(refreshToken))
-	if base64.StdEncoding.EncodeToString(refreshTokenHash[:]) != storedToken.TokenHash {
-		return ErrInvalidRefreshToken
-	}
-
-	return s.tokenRepo.Delete(ctx, userID)
+	return nil
 }
 
 // ForgotPassword инициирует сброс пароля.
@@ -220,53 +191,44 @@ func (s *authService) ForgotPassword(ctx context.Context, phone string) error {
 	code := fmt.Sprintf("%06d", rand.Intn(1000000))
 	key := resetCodePrefix + phone
 
-	// Сохраняем код в Redis
 	if err := s.cacheRepo.Set(ctx, key, code, resetCodeTTL); err != nil {
-		log.Printf("ERROR: Failed to set reset code to redis for phone %s: %v", phone, err)
-		return fmt.Errorf("internal server error")
+		return NewInternalServerError("failed to set reset code to cache", err)
 	}
 
-	// Имитируем отправку SMS
 	log.Printf("!!! MOCK SMS !!! Password reset code for user %s is: %s", phone, code)
-
 	return nil
 }
 
 // ResetPassword устанавливает новый пароль с использованием кода.
 func (s *authService) ResetPassword(ctx context.Context, phone, code, newPassword string) error {
 	key := resetCodePrefix + phone
-
-	// Получаем код из Redis
 	storedCode, err := s.cacheRepo.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			return ErrCodeMismatch
+			return NewUnauthorizedError("confirmation code is incorrect or expired", err)
 		}
-		log.Printf("ERROR: Failed to get reset code from redis for phone %s: %v", phone, err)
-		return fmt.Errorf("internal server error")
+		return NewInternalServerError("failed to get reset code from cache", err)
 	}
 
 	if storedCode != code {
-		return ErrCodeMismatch
+		return NewUnauthorizedError("confirmation code is incorrect or expired", nil)
 	}
 
 	user, err := s.userRepo.GetUserByPhone(ctx, phone)
 	if err != nil {
-		return ErrInvalidCredentials
+		return NewInternalServerError("failed to get user for password reset", err)
 	}
 
 	newPasswordHash, err := utils.HashPassword(newPassword)
 	if err != nil {
-		return err
+		return NewInternalServerError("failed to hash new password", err)
 	}
 
 	if err := s.userRepo.UpdatePassword(ctx, user.ID, newPasswordHash); err != nil {
-		return err
+		return NewInternalServerError("failed to update password in db", err)
 	}
 
-	// Удаляем использованный код из Redis
 	_ = s.cacheRepo.Delete(ctx, key)
-
 	return nil
 }
 
@@ -280,17 +242,17 @@ func (s *authService) ParseToken(accessToken string) (uint64, error) {
 			return []byte(s.signingKey), nil
 		})
 	if err != nil {
-		return 0, err
+		return 0, NewUnauthorizedError("invalid token", err)
 	}
 
 	claims, ok := token.Claims.(*jwt.MapClaims)
 	if !ok || !token.Valid {
-		return 0, errors.New("invalid token")
+		return 0, NewUnauthorizedError("invalid token claims", nil)
 	}
 
 	subFloat, ok := (*claims)["sub"].(float64)
 	if !ok {
-		return 0, errors.New("invalid subject claim")
+		return 0, NewUnauthorizedError("invalid subject claim in token", nil)
 	}
 
 	return uint64(subFloat), nil
@@ -298,32 +260,26 @@ func (s *authService) ParseToken(accessToken string) (uint64, error) {
 
 // createSession - внутренний метод для генерации и сохранения пары токенов.
 func (s *authService) createSession(ctx context.Context, userID uint64) (map[string]string, error) {
-	// Генерируем access token
 	accessToken, err := utils.GenerateToken(userID, s.signingKey, s.tokenTTL)
 	if err != nil {
-		return nil, err
+		return nil, NewInternalServerError("failed to generate access token", err)
 	}
 
-	// Генерируем refresh token
 	randomBytes := make([]byte, 32)
 	if _, err := rand.Read(randomBytes); err != nil {
-		return nil, err
+		return nil, NewInternalServerError("failed to generate refresh token", err)
 	}
-	// Формат: "userID.randomString"
 	refreshTokenString := fmt.Sprintf("%d.%s", userID, base64.URLEncoding.EncodeToString(randomBytes))
-
-	// Хешируем refresh token для хранения в БД
 	refreshTokenHash := sha256.Sum256([]byte(refreshTokenString))
 	refreshTokenHashString := base64.StdEncoding.EncodeToString(refreshTokenHash[:])
 
-	// Сохраняем в БД
 	err = s.tokenRepo.Create(ctx, models.RefreshToken{
 		UserID:    userID,
 		TokenHash: refreshTokenHashString,
 		ExpiresAt: time.Now().Add(refreshTokenTTL),
 	})
 	if err != nil {
-		return nil, err
+		return nil, NewInternalServerError("failed to save refresh token", err)
 	}
 
 	return map[string]string{

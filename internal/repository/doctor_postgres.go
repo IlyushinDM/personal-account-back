@@ -27,7 +27,7 @@ func (r *DoctorPostgres) GetDoctorByID(ctx context.Context, id uint64) (models.D
 	return doctor, err
 }
 
-// GetSpecialistRecommendations возвращает фиктивный текст рекомендаций для специалиста.
+// GetSpecialistRecommendations получает рекомендации из поля в таблице doctors.
 func (r *DoctorPostgres) GetSpecialistRecommendations(ctx context.Context, doctorID uint64) (string, error) {
 	var doctor models.Doctor
 	// Выбираем только одно поле для эффективности
@@ -39,7 +39,6 @@ func (r *DoctorPostgres) GetSpecialistRecommendations(ctx context.Context, docto
 }
 
 // GetDoctorsBySpecialty получает список врачей по ID их специальности с пагинацией и сортировкой.
-// Возвращает список врачей и общее количество врачей по данной специальности.
 func (r *DoctorPostgres) GetDoctorsBySpecialty(
 	ctx context.Context, specialtyID uint32, params models.PaginationParams,
 ) ([]models.Doctor, int64, error) {
@@ -83,15 +82,21 @@ func (r *DoctorPostgres) GetDoctorsBySpecialty(
 	return doctors, total, err
 }
 
-// SearchDoctors выполняет поиск врачей по ФИО или названию специальности.
+// SearchDoctors выполняет поиск врачей по ФИО или названию специальности с использованием FTS.
 func (r *DoctorPostgres) SearchDoctors(ctx context.Context, searchQuery string) ([]models.Doctor, error) {
 	var doctors []models.Doctor
-	searchPattern := "%" + strings.ToLower(searchQuery) + "%"
 
-	err := r.db.WithContext(ctx).Preload("Specialty").
-		Joins("JOIN medical_center.specialties ON medical_center.specialties.id = medical_center.doctors.specialty_id").
-		Where("LOWER(CONCAT_WS(' ', last_name, first_name, patronymic)) LIKE ? OR LOWER(medical_center.specialties.name) LIKE ?",
-			searchPattern, searchPattern).
+	// Преобразуем поисковый запрос в формат, понятный plainto_tsquery
+	tsQuery := strings.ReplaceAll(strings.TrimSpace(searchQuery), " ", " & ")
+
+	// Ранжируем результаты по релевантности
+	rank := "ts_rank(fts_document, plainto_tsquery('russian', ?))"
+
+	err := r.db.WithContext(ctx).
+		Preload("Specialty").
+		Select("*, "+rank+" as rank", searchQuery).
+		Where("fts_document @@ plainto_tsquery('russian', ?)", tsQuery).
+		Order("rank DESC").
 		Find(&doctors).Error
 
 	return doctors, err
