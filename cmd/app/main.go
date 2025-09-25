@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	_ "lk/docs"
+
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
