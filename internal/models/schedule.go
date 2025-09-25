@@ -10,3 +10,7 @@ type Schedule struct {
 	StartTime time.Time `gorm:"type:time"`
 	EndTime   time.Time `gorm:"type:time"`
 }
+
+func (Schedule) TableName() string {
+	return "medical_center.schedules"
+}

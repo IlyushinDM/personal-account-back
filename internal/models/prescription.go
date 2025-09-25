@@ -13,7 +13,11 @@ type Prescription struct {
 	DoctorID      uint64       `db:"doctor_id" json:"doctorID"`
 	Content       string       `db:"content" json:"content"`
 	Status        string       `db:"status" json:"status"`
-	CompletedAt   sql.NullTime `db:"completed_at" json:"completedAt,omitempty"`
+	CompletedAt   sql.NullTime `db:"completed_at" json:"completedAt,omitzero"`
 	CreatedAt     time.Time    `db:"created_at" json:"createdAt"`
-	ArchivedDate  sql.NullTime `json:"archivedDate,omitempty"`
+	ArchivedDate  sql.NullTime `json:"archivedDate,omitzero"`
+}
+
+func (Prescription) TableName() string {
+	return "medical_center.prescriptions"
 }

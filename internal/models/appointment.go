@@ -20,11 +20,13 @@ type Appointment struct {
 	PreVisitInstructions sql.NullString `db:"pre_visit_instructions" json:"preVisitInstructions,omitzero"`
 	Diagnosis            sql.NullString `db:"diagnosis" json:"diagnosis,omitzero"`
 	Recommendations      sql.NullString `db:"recommendations" json:"recommendations,omitzero"`
-	ResultFileURL        sql.NullString `db:"result_file_url" json:"resultFileURL,omitzero"`
+	ResultFileURL        sql.NullString `db:"result_file_url" json:"-"`
 	CreatedAt            time.Time      `db:"created_at" json:"createdAt"`
 	UpdatedAt            time.Time      `db:"updated_at" json:"updatedAt"`
+	Doctor               Doctor         `gorm:"foreignKey:DoctorID"`
+	Service              Service        `gorm:"foreignKey:ServiceID"`
+}
 
-	// Связанные данные для GORM Preload
-	Doctor  Doctor  `gorm:"foreignKey:DoctorID"`
-	Service Service `gorm:"foreignKey:ServiceID"`
+func (Appointment) TableName() string {
+	return "medical_center.appointments"
 }

@@ -11,7 +11,11 @@ type Review struct {
 	UserID      uint64         `db:"user_id" json:"userID"`
 	DoctorID    uint64         `db:"doctor_id" json:"doctorID"`
 	Rating      uint16         `db:"rating" json:"rating"`
-	Comment     sql.NullString `db:"comment" json:"comment,omitempty"`
+	Comment     sql.NullString `db:"comment" json:"comment,omitzero"`
 	IsModerated bool           `db:"is_moderated" json:"isModerated"`
 	CreatedAt   time.Time      `db:"created_at" json:"createdAt"`
+}
+
+func (Review) TableName() string {
+	return "medical_center.reviews"
 }
