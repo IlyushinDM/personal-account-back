@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,7 +14,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
@@ -65,11 +63,7 @@ type _ struct {
 }
 
 func main() {
-	// 1. Инициализация конфигурации и логгера
-	if err := godotenv.Load(); err != nil {
-		log.Println("Файл .env не найден, используются системные переменные окружения")
-	}
-
+	// 1. Инициализация логгера
 	logger.Init(os.Getenv("LOG_DIR"))
 	logger.Default().Info("логгер инициализирован")
 

@@ -3,6 +3,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -23,7 +24,12 @@ type Config struct {
 
 // DBConfig содержит параметры для подключения к базе данных.
 type DBConfig struct {
-	URL string `yaml:"url" env:"DATABASE_URL" env-required:"true"`
+	Host     string `env:"POSTGRES_HOST" env-default:"localhost"`
+	Port     string `env:"POSTGRES_PORT" env-default:"5432"`
+	User     string `env:"POSTGRES_USER" env-required:"true"`
+	Password string `env:"POSTGRES_PASSWORD" env-required:"true"`
+	Name     string `env:"POSTGRES_DB" env-required:"true"`
+	URL      string // Take it easy, bro - это поле будет собрано автоматически
 }
 
 // HTTPServerConfig содержит параметры для HTTP-сервера.
@@ -67,6 +73,15 @@ func MustLoad() *Config {
 	if err := cleanenv.ReadEnv(&cfg); err != nil {
 		log.Fatalf("cannot read environment variables: %s", err)
 	}
+
+	// Собираем DSN для базы данных.
+	cfg.Database.URL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		cfg.Database.User,
+		cfg.Database.Password,
+		cfg.Database.Host,
+		cfg.Database.Port,
+		cfg.Database.Name,
+	)
 
 	return &cfg
 }

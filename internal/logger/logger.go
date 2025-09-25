@@ -189,34 +189,46 @@ func (f *CustomFormatter) formatGin(b *bytes.Buffer, entry *logrus.Entry) {
 	fmt.Fprintf(b, " %v", latency)
 }
 
-// formatGorm форматирует лог от GORM
+// formatGorm форматирует лог от GORM.
 func (f *CustomFormatter) formatGorm(b *bytes.Buffer, entry *logrus.Entry) {
-	sql := entry.Data["sql"].(string)
-	rows := entry.Data["rows"].(int64)
-	latency := entry.Data["elapsed"].(time.Duration)
+	// Проверяем, есть ли в логе SQL-специфичные поля.
+	// Если их нет -- обычное Info/Warn/Error сообщение от GORM.
+	sqlVal, sqlOk := entry.Data["sql"]
+	rowsVal, rowsOk := entry.Data["rows"]
+	latencyVal, latencyOk := entry.Data["elapsed"]
 
-	// Формат: SQL QUERY | ROWS | MESSAGE/ERROR | LATENCY
-	if !f.DisableColors {
-		// SQL-запрос белым текстом
-		fmt.Fprintf(b, "%s%s%s | %d rows |", ColorWhite, sql, ColorReset, rows)
-	} else {
-		fmt.Fprintf(b, "%s | %d rows |", sql, rows)
-	}
+	// Если это полноценный SQL-трейс, форматируем его по-особому.
+	if sqlOk && rowsOk && latencyOk {
+		sql := sqlVal.(string)
+		rows := rowsVal.(int64)
+		latency := latencyVal.(time.Duration)
 
-	// Message или Error
-	if err, ok := entry.Data["error"]; ok {
-		errMsg := err.(error).Error()
+		// Формат: SQL QUERY | ROWS | MESSAGE/ERROR | LATENCY
 		if !f.DisableColors {
-			fmt.Fprintf(b, " %s%s%s |", ColorRed, errMsg, ColorReset)
+			fmt.Fprintf(b, "%s%s%s | %d rows |", ColorWhite, sql, ColorReset, rows)
 		} else {
-			fmt.Fprintf(b, " %s |", errMsg)
+			fmt.Fprintf(b, "%s | %d rows |", sql, rows)
 		}
-	} else if msg := entry.Message; msg != "" && msg != "SQL Query" {
-		fmt.Fprintf(b, " %s |", msg)
+
+		// Message или Error
+		if err, ok := entry.Data["error"]; ok {
+			errMsg := err.(error).Error()
+			if !f.DisableColors {
+				fmt.Fprintf(b, " %s%s%s |", ColorRed, errMsg, ColorReset)
+			} else {
+				fmt.Fprintf(b, " %s |", errMsg)
+			}
+		} else if msg := entry.Message; msg != "" && msg != "SQL Query" {
+			fmt.Fprintf(b, " %s |", msg)
+		}
+
+		// Latency
+		fmt.Fprintf(b, " %v", latency)
+		return
 	}
 
-	// Latency
-	fmt.Fprintf(b, " %v", latency)
+	// Если это не SQL-трейс (например, GORM.Info), форматируем как обычное сообщение.
+	f.formatDefault(b, entry)
 }
 
 // formatDefault форматирует лог по умолчанию
