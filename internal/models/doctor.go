@@ -21,6 +21,10 @@ type Doctor struct {
 	Specialty       Specialty      `gorm:"foreignKey:SpecialtyID" db:"specialty" json:"specialty"`
 }
 
+func (Doctor) TableName() string {
+	return "medical_center.doctors"
+}
+
 // DoctorEducation описывает образование врача
 type DoctorEducation struct {
 	ID          uint64 `gorm:"primarykey" db:"id" json:"id"`
@@ -29,6 +33,10 @@ type DoctorEducation struct {
 	Specialty   string `db:"specialty" json:"specialty"`
 	StartYear   uint16 `db:"start_year" json:"startYear"`
 	EndYear     uint16 `db:"end_year" json:"endYear"`
+}
+
+func (DoctorEducation) TableName() string {
+	return "medical_center.doctoreducation"
 }
 
 // DoctorResidency описывает ординатуру врача
@@ -41,12 +49,20 @@ type DoctorResidency struct {
 	EndYear     uint16 `db:"end_year" json:"endYear"`
 }
 
+func (DoctorResidency) TableName() string {
+	return "medical_center.doctorresidency"
+}
+
 // DoctorCourse описывает курсы повышения квалификации
 type DoctorCourse struct {
 	ID         uint64 `gorm:"primarykey" db:"id" json:"id"`
 	DoctorID   uint64 `db:"doctor_id" json:"doctorID"`
 	CourseName string `db:"course_name" json:"courseName"`
 	Year       uint16 `db:"year" json:"year"`
+}
+
+func (DoctorCourse) TableName() string {
+	return "medical_center.doctorcourses"
 }
 
 // DoctorCertificate описывает сертификаты врача
@@ -57,6 +73,10 @@ type DoctorCertificate struct {
 	CertNumber sql.NullString `db:"cert_number" json:"certNumber,omitempty"`
 }
 
+func (DoctorCertificate) TableName() string {
+	return "medical_center.doctorcertificates"
+}
+
 // DoctorSkill описывает профессиональные навыки врача
 type DoctorSkill struct {
 	ID        uint64 `gorm:"primarykey" db:"id" json:"id"`
@@ -64,11 +84,19 @@ type DoctorSkill struct {
 	SkillName string `db:"skill_name" json:"skillName"`
 }
 
+func (DoctorSkill) TableName() string {
+	return "medical_center.doctorskills"
+}
+
 // DoctorSpecialization описывает узкие специализации врача
 type DoctorSpecialization struct {
 	ID       uint64 `gorm:"primarykey" db:"id" json:"id"`
 	DoctorID uint64 `db:"doctor_id" json:"doctorID"`
 	Area     string `db:"area" json:"area"`
+}
+
+func (DoctorSpecialization) TableName() string {
+	return "medical_center.doctorspecializations"
 }
 
 // PaginatedDoctorsResponse - это DTO для возврата пагинированного списка врачей.

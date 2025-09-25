@@ -19,6 +19,10 @@ type User struct {
 	UpdatedAt    time.Time      `db:"updated_at" json:"updatedAt"`
 }
 
+func (User) TableName() string {
+	return "medical_center.users"
+}
+
 // UserProfile содержит расширенную информацию о пользователе
 type UserProfile struct {
 	ID         uint64         `gorm:"primarykey" db:"id" json:"id"`
@@ -31,4 +35,8 @@ type UserProfile struct {
 	CityID     uint32         `db:"city_id" json:"cityID"`
 	Email      sql.NullString `gorm:"unique" db:"email" json:"email,omitempty"`
 	AvatarURL  sql.NullString `db:"avatar_url" json:"avatarURL,omitempty"`
+}
+
+func (UserProfile) TableName() string {
+	return "medical_center.user_profiles"
 }

@@ -9,3 +9,7 @@ type RefreshToken struct {
 	TokenHash string    `gorm:"not null"`
 	ExpiresAt time.Time `gorm:"not null"`
 }
+
+func (RefreshToken) TableName() string {
+	return "medical_center.refresh_tokens"
+}

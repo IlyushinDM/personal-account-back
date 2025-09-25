@@ -36,3 +36,7 @@ type LegalDocument struct {
 	Version    string `json:"version" example:"2.0"`
 	UpdateDate string `json:"updateDate" example:"2023-09-15"`
 }
+
+func (LegalDocument) TableName() string {
+	return "medical_center.legal_documents"
+}
