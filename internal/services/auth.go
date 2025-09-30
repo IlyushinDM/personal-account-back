@@ -67,6 +67,10 @@ func (s *authService) CreateUser(ctx context.Context, phone, password, fullName,
 		return nil, NewInternalServerError("database error while checking user", err)
 	}
 
+	if err := utils.ValidatePasswordStrength(password); err != nil {
+		return nil, NewBadRequestError(err.Error(), err)
+	}
+
 	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
 		return nil, NewInternalServerError("failed to hash password", err)
@@ -212,6 +216,10 @@ func (s *authService) ResetPassword(ctx context.Context, phone, code, newPasswor
 
 	if storedCode != code {
 		return NewUnauthorizedError("confirmation code is incorrect or expired", nil)
+	}
+
+	if err := utils.ValidatePasswordStrength(newPassword); err != nil {
+		return NewBadRequestError(err.Error(), err)
 	}
 
 	user, err := s.userRepo.GetUserByPhone(ctx, phone)

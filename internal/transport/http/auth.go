@@ -11,7 +11,7 @@ import (
 // signUpInput - структура для валидации входящих данных при регистрации.
 type signUpInput struct {
 	Phone           string `json:"phone" binding:"required"`
-	Password        string `json:"password" binding:"required,min=8"`
+	Password        string `json:"password" binding:"required"`
 	PasswordConfirm string `json:"passwordConfirm" binding:"required"`
 	FullName        string `json:"fullName" binding:"required"`
 	Gender          string `json:"gender" binding:"required"`
@@ -171,7 +171,7 @@ func (h *Handler) forgotPassword(c *gin.Context) {
 type resetPasswordInput struct {
 	Phone       string `json:"phone" binding:"required"`
 	Code        string `json:"code" binding:"required"`
-	NewPassword string `json:"newPassword" binding:"required,min=8"`
+	NewPassword string `json:"newPassword" binding:"required"`
 }
 
 // @Summary      Восстановление пароля (шаг 2: сброс)
