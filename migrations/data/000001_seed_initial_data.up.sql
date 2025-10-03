@@ -31,7 +31,7 @@ ON CONFLICT (doctor_id, date) DO NOTHING;
 -- Создаем тестового пользователя
 -- Пароль: 'password123'
 INSERT INTO medical_center.users (id, phone, password_hash) VALUES
-(1, '+79991234567', '$2a$10$D8yS.31Y5B94jACp2t5yB.MprVyB4idlQ87i9R6A8x.yBqgX5.P8.') ON CONFLICT (id) DO NOTHING;
+(1, '+79991234567', '$2a$10$5Aa9vplKAviMqZnl/4bOhutXhHiJjrNPN3AKefBsagxnuLejYzNcS') ON CONFLICT (id) DO NOTHING;
 
 -- Создаем профиль для пользователя
 INSERT INTO medical_center.user_profiles (id, user_id, first_name, last_name, patronymic, birth_date, gender, city_id, email) VALUES
