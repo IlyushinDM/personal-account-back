@@ -79,6 +79,12 @@ func (h *Handler) InitRoutes(router *gin.Engine) {
 				specialists.GET("/:id/recommendations", h.getSpecialistRecommendations)
 			}
 
+			// --- ОТЗЫВЫ (FR-3.x) ---
+			reviews := authorized.Group("/reviews")
+			{
+				reviews.GET("/", h.getReviews)
+			}
+
 			// --- УСЛУГИ (FR-5.x) ---
 			services := authorized.Group("/services")
 			{

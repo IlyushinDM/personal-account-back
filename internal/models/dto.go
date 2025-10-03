@@ -31,3 +31,10 @@ type AvailableRangeSlotsResponse struct {
 	ServiceID    uint64        `json:"serviceId"`
 	SlotsByDay   []SlotsForDay `json:"slotsByDay"`
 }
+
+// PaginatedReviewsResponse представляет DTO для возврата пагинированного списка отзывов.
+type PaginatedReviewsResponse struct {
+	Page  int      `json:"page" example:"1"`
+	Total int64    `json:"total" example:"150"`
+	Items []Review `json:"items"`
+}

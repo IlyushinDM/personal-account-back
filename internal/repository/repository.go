@@ -98,6 +98,12 @@ type MedicalCardRepository interface {
 	GetAnalysisByID(ctx context.Context, analysisID uint64) (models.LabAnalysis, error)
 }
 
+// ReviewRepository определяет методы для работы с отзывами.
+type ReviewRepository interface {
+	GetReviewsByDoctorID(ctx context.Context, doctorID uint64, params models.PaginationParams) (
+		[]models.Review, int64, error)
+}
+
 // CacheRepository определяет интерфейс для работы с key-value хранилищем (кэшем).
 type CacheRepository interface {
 	Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error
@@ -116,6 +122,7 @@ type Repository struct {
 	Prescription PrescriptionRepository
 	Service      ServiceRepository
 	MedicalCard  MedicalCardRepository
+	Review       ReviewRepository
 	Cache        CacheRepository
 	Transactor
 }
@@ -132,6 +139,7 @@ func NewRepository(db *gorm.DB, redisClient *redis.Client) *Repository {
 		Prescription: NewPrescriptionPostgres(db),
 		Service:      NewServicePostgres(db),
 		MedicalCard:  NewMedicalCardPostgres(db),
+		Review:       NewReviewPostgres(db),
 		Cache:        NewCacheRedis(redisClient),
 		Transactor:   NewTransactor(db),
 	}
