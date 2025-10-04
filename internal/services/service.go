@@ -21,10 +21,6 @@ type Authorization interface {
 	Logout(ctx context.Context, refreshToken string) error
 	ForgotPassword(ctx context.Context, phone string) error
 	ResetPassword(ctx context.Context, phone, code, newPassword string) error
-
-	// TODO: FR-1.3, FR-1.4 - Добавить методы для работы с Госуслугами
-	// GetGosuslugiAuthURL(state string) (string, error)
-	// AuthorizeGosuslugi(ctx context.Context, gosuslugiCode, state string) (map[string]string, error)
 }
 
 // UserService определяет методы для работы с данными пользователя.
@@ -88,6 +84,119 @@ type MedicalCardService interface {
 	DownloadFile(ctx context.Context, userID, fileID uint64) ([]byte, string, error)
 }
 
+// AdminService определяет все методы для администрирования системы.
+type AdminService interface {
+	// Auth & Dashboard
+	Login(ctx context.Context, login, password string) (map[string]string, error)
+	ParseAdminToken(token string) (uint64, error)
+	GetDashboardStats(ctx context.Context) (models.AdminDashboardStats, error)
+
+	// User
+	GetAllUsers(ctx context.Context, params models.PaginationParams) ([]models.User, int64, error)
+	GetUserByID(ctx context.Context, userID uint64) (*models.User, *models.UserProfile, error)
+	UpdateUser(ctx context.Context, userID uint64, input UpdateUserInput) error
+	DeleteUser(ctx context.Context, userID uint64) error
+	GetUserAppointments(ctx context.Context, userID uint64, params models.PaginationParams) (
+		[]models.Appointment, int64, error)
+	GetUserAnalyses(ctx context.Context, userID uint64, params models.PaginationParams) (
+		[]models.LabAnalysis, int64, error)
+
+	// Doctor
+	GetAllSpecialists(ctx context.Context, params models.PaginationParams) ([]models.Doctor, int64, error)
+	CreateSpecialist(ctx context.Context, input CreateDoctorInput) (uint64, error)
+	GetSpecialistByID(ctx context.Context, doctorID uint64) (models.Doctor, error)
+	UpdateSpecialist(ctx context.Context, doctorID uint64, input UpdateDoctorInput) error
+	DeleteSpecialist(ctx context.Context, doctorID uint64) error
+	GetSpecialistSchedule(ctx context.Context, doctorID uint64) ([]models.Schedule, error)
+	UpdateSpecialistSchedule(ctx context.Context, doctorID uint64, input UpdateScheduleInput) error
+
+	// Appointment
+	GetAllAppointments(ctx context.Context, params models.PaginationParams, filters map[string]interface{}) (
+		[]models.Appointment, int64, error)
+	GetAppointmentStats(ctx context.Context) (map[string]int64, error)
+	GetAppointmentDetails(ctx context.Context, appointmentID uint64) (models.Appointment, error)
+	UpdateAppointmentStatus(ctx context.Context, appointmentID uint64, statusID uint32) error
+	DeleteAppointment(ctx context.Context, appointmentID uint64) error
+
+	// Service & Department
+	GetAllServices(ctx context.Context) ([]models.Service, error)
+	CreateService(ctx context.Context, input CreateServiceInput) (uint64, error)
+	UpdateService(ctx context.Context, serviceID uint64, input UpdateServiceInput) error
+	DeleteService(ctx context.Context, serviceID uint64) error
+	GetAllDepartments(ctx context.Context) ([]models.Department, error)
+	CreateDepartment(ctx context.Context, input CreateDepartmentInput) (uint32, error)
+	UpdateDepartment(ctx context.Context, departmentID uint32, input UpdateDepartmentInput) error
+	DeleteDepartment(ctx context.Context, departmentID uint32) error
+
+	// TODO: Реализовать другие методы бизнес-логики (Analyses, Prescriptions, Family, Settings, и т.д.)
+}
+
+// --- DTO для AdminService ---
+
+type UpdateUserInput struct {
+	Phone     *string `json:"phone"`
+	IsActive  *bool   `json:"isActive"`
+	FirstName *string `json:"firstName"`
+	LastName  *string `json:"lastName"`
+	Email     *string `json:"email"`
+}
+
+type CreateDoctorInput struct {
+	FirstName       string  `json:"firstName" binding:"required"`
+	LastName        string  `json:"lastName" binding:"required"`
+	Patronymic      *string `json:"patronymic"`
+	SpecialtyID     uint32  `json:"specialtyId" binding:"required"`
+	ExperienceYears uint16  `json:"experienceYears" binding:"required"`
+	Recommendations *string `json:"recommendations"`
+}
+
+type UpdateDoctorInput struct {
+	FirstName       *string `json:"firstName"`
+	LastName        *string `json:"lastName"`
+	Patronymic      *string `json:"patronymic"`
+	SpecialtyID     *uint32 `json:"specialtyId"`
+	ExperienceYears *uint16 `json:"experienceYears"`
+	Recommendations *string `json:"recommendations"`
+}
+
+type ScheduleItem struct {
+	Date      string `json:"date" binding:"required"`      // YYYY-MM-DD
+	StartTime string `json:"startTime" binding:"required"` // HH:MM
+	EndTime   string `json:"endTime" binding:"required"`   // HH:MM
+}
+
+type UpdateScheduleInput struct {
+	Schedules []ScheduleItem `json:"schedules"`
+}
+
+type CreateServiceInput struct {
+	Name            string  `json:"name" binding:"required"`
+	Price           float64 `json:"price" binding:"required"`
+	DurationMinutes uint16  `json:"durationMinutes" binding:"required"`
+	Description     *string `json:"description"`
+	DoctorID        uint64  `json:"doctorId" binding:"required"`
+	Recommendations *string `json:"recommendations"`
+}
+
+type UpdateServiceInput struct {
+	Name            *string  `json:"name"`
+	Price           *float64 `json:"price"`
+	DurationMinutes *uint16  `json:"durationMinutes"`
+	Description     *string  `json:"description"`
+	DoctorID        *uint64  `json:"doctorId"`
+	Recommendations *string  `json:"recommendations"`
+}
+
+type CreateDepartmentInput struct {
+	Name string `json:"name" binding:"required"`
+}
+
+type UpdateDepartmentInput struct {
+	Name *string `json:"name"`
+}
+
+// --- Service Контейнер ---
+
 // Service - это контейнер для всех сервисов приложения.
 type Service struct {
 	Authorization Authorization
@@ -98,6 +207,7 @@ type Service struct {
 	Info          InfoService
 	Prescription  PrescriptionService
 	MedicalCard   MedicalCardService
+	Admin         AdminService
 }
 
 // ServiceDependencies содержит все зависимости, необходимые для создания сервисов.
@@ -129,5 +239,6 @@ func NewService(deps ServiceDependencies) *Service {
 		Info:          NewInfoService(deps.Repos.Service, deps.Repos.Info),
 		Prescription:  NewPrescriptionService(deps.Repos.Prescription),
 		MedicalCard:   NewMedicalCardService(deps.Repos.MedicalCard, deps.Repos.Prescription, deps.Storage),
+		Admin:         NewAdminService(deps.Repos, deps.SigningKey, deps.TokenTTL),
 	}
 }

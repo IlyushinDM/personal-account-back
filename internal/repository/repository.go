@@ -105,7 +105,49 @@ type CacheRepository interface {
 	Delete(ctx context.Context, key string) error
 }
 
-// Repository - это контейнер для всех репозиториев приложения.
+// AdminRepository определяет методы для работы с администраторами.
+type AdminRepository interface {
+	GetByLogin(ctx context.Context, login string) (models.Admin, error)
+	GetByID(ctx context.Context, id uint64) (models.Admin, error)
+
+	// User
+	GetAllUsers(ctx context.Context, params models.PaginationParams) ([]models.User, int64, error)
+
+	//? GetUserByID уже есть в UserRepository, можно его переиспользовать
+	//? Или создать отдельно, но зачем?
+	UpdateUser(ctx context.Context, user models.User, profile models.UserProfile) error
+
+	DeleteUser(ctx context.Context, userID uint64) error
+	GetUserAppointments(ctx context.Context, userID uint64, params models.PaginationParams) ([]models.Appointment, int64, error)
+	GetUserAnalyses(ctx context.Context, userID uint64, params models.PaginationParams) ([]models.LabAnalysis, int64, error)
+
+	// Doctor
+	GetAllSpecialists(ctx context.Context, params models.PaginationParams) ([]models.Doctor, int64, error)
+	CreateDoctor(ctx context.Context, doctor models.Doctor) (uint64, error)
+	UpdateDoctor(ctx context.Context, doctor models.Doctor) error
+	DeleteDoctor(ctx context.Context, doctorID uint64) error
+	GetDoctorSchedule(ctx context.Context, doctorID uint64) ([]models.Schedule, error)
+	UpdateDoctorSchedule(ctx context.Context, doctorID uint64, schedule []models.Schedule) error
+
+	// Appointment
+	GetAllAppointments(ctx context.Context, params models.PaginationParams, filters map[string]any) ([]models.Appointment, int64, error)
+	DeleteAppointment(ctx context.Context, appointmentID uint64) error
+	GetAppointmentStats(ctx context.Context) (map[string]int64, error)
+
+	// Service & Department
+	GetAllServices(ctx context.Context) ([]models.Service, error)
+	CreateService(ctx context.Context, service models.Service) (uint64, error)
+	UpdateService(ctx context.Context, service models.Service) error
+	DeleteService(ctx context.Context, serviceID uint64) error
+	CreateDepartment(ctx context.Context, department models.Department) (uint32, error)
+	UpdateDepartment(ctx context.Context, department models.Department) error
+	DeleteDepartment(ctx context.Context, departmentID uint32) error
+
+	// Статистика
+	GetDashboardStats(ctx context.Context) (models.AdminDashboardStats, error)
+}
+
+// Repository - контейнер для всех репозиториев приложения.
 type Repository struct {
 	User         UserRepository
 	Token        TokenRepository
@@ -117,6 +159,7 @@ type Repository struct {
 	Service      ServiceRepository
 	MedicalCard  MedicalCardRepository
 	Cache        CacheRepository
+	Admin        AdminRepository
 	Transactor
 }
 
@@ -133,6 +176,7 @@ func NewRepository(db *gorm.DB, redisClient *redis.Client) *Repository {
 		Service:      NewServicePostgres(db),
 		MedicalCard:  NewMedicalCardPostgres(db),
 		Cache:        NewCacheRedis(redisClient),
+		Admin:        NewAdminPostgres(db),
 		Transactor:   NewTransactor(db),
 	}
 }

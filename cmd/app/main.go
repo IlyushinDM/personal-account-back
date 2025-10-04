@@ -53,6 +53,7 @@ import (
 type _ struct {
 	// Этот блок нужен для того, чтобы swag корректно распознал
 	// типы из пакета models, используемые в аннотациях.
+	//* Поэтому не убираем его!
 	_ models.DepartmentWithSpecialties
 	_ models.Doctor
 	_ models.Appointment
@@ -119,7 +120,7 @@ func main() {
 	}
 	services := services.NewService(serviceDeps)
 
-	handler := httptransport.NewHandler(services, repos.User)
+	handler := httptransport.NewHandler(services, repos.User, repos.Admin)
 	logger.Default().Info("слои приложения инициализированы")
 
 	// 4. Инициализация HTTP-роутера и middleware
