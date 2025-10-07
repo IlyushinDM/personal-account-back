@@ -48,7 +48,8 @@ func (s *appointmentService) CreateAppointment(ctx context.Context, appointment 
 		return 0, NewInternalServerError("failed to check doctor existence", err)
 	}
 
-	// TODO: Добавить оставшуюся бизнес-логику перед созданием записи:
+	// TODO: FR-3, FR-5 - Добавить бизнес-логику проверки доступности слота перед созданием записи.
+	// Это критически важная проверка на конфликт состояний (race condition), если два пользователя одновременно пытаются занять один слот.
 	// - Проверить, свободен ли врач в это время (самое важное).
 	// - Проверить, существует ли такой serviceID, clinicID.
 
@@ -57,7 +58,8 @@ func (s *appointmentService) CreateAppointment(ctx context.Context, appointment 
 		return 0, NewInternalServerError("failed to create appointment", err)
 	}
 
-	// TODO: FR-5.5 - Инициировать отправку SMS-уведомления.
+	// TODO: FR-5.5 - Инициировать отправку SMS-уведомления через smsClient.
+	// Для этого smsClient должен быть добавлен в зависимости appointmentService.
 
 	return id, nil
 }
