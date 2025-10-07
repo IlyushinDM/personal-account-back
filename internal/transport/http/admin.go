@@ -471,125 +471,173 @@ func (h *Handler) adminUpdateSpecialistSchedule(c *gin.Context) {
 	c.JSON(http.StatusOK, statusResponse{Status: "schedule updated successfully"})
 }
 
-// TODO: Реализовать
-// --- Заглушки для других обработчиков админа ---
+// --- Appointments ---
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать получение списка всех записей.
+// Добавить обработку query-параметров для фильтрации по дате, статусу, врачу.
 func (h *Handler) adminGetAllAppointments(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать получение статистики по записям (общее кол-во, отмененные, завершенные).
 func (h *Handler) adminGetAppointmentStats(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать получение деталей конкретной записи.
 func (h *Handler) adminGetAppointmentDetails(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать обновление статуса записи (например, отмена клиникой).
 func (h *Handler) adminUpdateAppointmentStatus(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать удаление ошибочно созданной записи.
 func (h *Handler) adminDeleteAppointment(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// --- Services ---
+
+// TODO: FR-9 (Административные эндпоинты) - Реализовать получение списка всех услуг.
 func (h *Handler) adminGetAllServices(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать создание новой услуги.
 func (h *Handler) adminCreateService(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать полное обновление данных услуги.
 func (h *Handler) adminUpdateService(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать удаление услуги.
 func (h *Handler) adminDeleteService(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// --- Departments ---
+
+// TODO: FR-9 (Административные эндпоинты) - Реализовать получение списка всех отделений.
 func (h *Handler) adminGetAllDepartments(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать создание нового отделения.
 func (h *Handler) adminCreateDepartment(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать обновление названия отделения.
 func (h *Handler) adminUpdateDepartment(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать удаление отделения.
 func (h *Handler) adminDeleteDepartment(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// --- Analyses ---
+
+// TODO: FR-9 (Административные эндпоинты) - Реализовать получение списка анализов с фильтрами.
 func (h *Handler) adminGetAllAnalyses(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать добавление результата анализа (привязка к пациенту).
 func (h *Handler) adminCreateAnalysisResult(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать обновление статуса или файла анализа.
 func (h *Handler) adminUpdateAnalysis(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать удаление анализа.
 func (h *Handler) adminDeleteAnalysis(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// --- Prescriptions ---
+
+// TODO: FR-9 (Административные эндпоинты) - Реализовать получение списка всех назначений.
 func (h *Handler) adminGetAllPrescriptions(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать создание нового назначения для пациента.
 func (h *Handler) adminCreatePrescription(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// --- Relations ---
+
+// TODO: FR-9 (Административные эндпоинты) - Реализовать получение всех семейных связей.
 func (h *Handler) adminGetFamilyRelations(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать разрыв семейной связи.
 func (h *Handler) adminDeleteFamilyRelation(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// --- Другое ---
+
+// TODO: FR-9 (Административные эндпоинты) - Реализовать получение логов действий пользователей и администраторов.
 func (h *Handler) adminGetAuditLogs(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать получение системных настроек клиники.
 func (h *Handler) adminGetClinicSettings(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать обновление настроек клиники (контакты, адреса, время работы).
 func (h *Handler) adminUpdateClinicSettings(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать получение списка юридических документов.
 func (h *Handler) adminGetLegalDocs(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать загрузку новой версии юридического документа.
 func (h *Handler) adminCreateLegalDoc(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать обновление существующего документа.
 func (h *Handler) adminUpdateLegalDoc(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать запуск ручного резервного копирования БД.
 func (h *Handler) adminCreateBackup(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать получение списка доступных бэкапов.
 func (h *Handler) adminGetBackupList(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать восстановление данных из бэкапа.
 func (h *Handler) adminRestoreFromBackup(c *gin.Context) {
 	c.Error(services.NewInternalServerError("Not implemented yet", nil))
 }
+
+// TODO: FR-9 (Административные эндпоинты) - Создать новый обработчик для получения списка отзывов, ожидающих модерации.
+// func (h *Handler) adminGetPendingReviews(c *gin.Context) { ... }
+
+// TODO: FR-9 (Административные эндпоинты) - Создать новый обработчик для одобрения или отклонения отзыва.
+// func (h *Handler) adminModerateReview(c *gin.Context) { ... }
