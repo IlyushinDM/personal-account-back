@@ -79,10 +79,20 @@ func (h *Handler) InitRoutes(router *gin.Engine) {
 				specialists.GET("/:id/recommendations", h.getSpecialistRecommendations)
 			}
 
+			// --- ВРАЧИ (FR-3.x) ---
+			doctors := authorized.Group("/doctors")
+			{
+				doctors.GET("/:id/reviews", h.getDoctorReviews)
+			}
+
 			// --- ОТЗЫВЫ (FR-3.x) ---
 			reviews := authorized.Group("/reviews")
 			{
 				reviews.GET("/", h.getReviews)
+				reviews.GET("/:id", h.getReviewByID)
+				reviews.POST("/", h.createReview)
+				reviews.PUT("/:id", h.updateReview)
+				reviews.DELETE("/:id", h.deleteReview)
 			}
 
 			// --- УСЛУГИ (FR-5.x) ---

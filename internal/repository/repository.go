@@ -102,6 +102,12 @@ type MedicalCardRepository interface {
 type ReviewRepository interface {
 	GetReviewsByDoctorID(ctx context.Context, doctorID uint64, params models.PaginationParams) (
 		[]models.Review, int64, error)
+	GetReviewByID(ctx context.Context, reviewID uint64) (models.Review, error)
+	CreateReview(ctx context.Context, review models.Review) (uint64, error)
+	UpdateReview(ctx context.Context, reviewID uint64, review models.Review) error
+	DeleteReview(ctx context.Context, reviewID uint64) error
+	CheckUserReviewExists(ctx context.Context, userID, doctorID uint64) (bool, error)
+	GetDoctorAverageRating(ctx context.Context, doctorID uint64) (float64, error)
 }
 
 // CacheRepository определяет интерфейс для работы с key-value хранилищем (кэшем).

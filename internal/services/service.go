@@ -92,6 +92,12 @@ type MedicalCardService interface {
 type ReviewService interface {
 	GetReviewsByDoctorID(ctx context.Context, doctorID uint64, params models.PaginationParams) (
 		models.PaginatedReviewsResponse, error)
+	GetReviewByID(ctx context.Context, reviewID uint64) (models.Review, error)
+	CreateReview(ctx context.Context, userID uint64, review models.Review) (uint64, error)
+	UpdateReview(ctx context.Context, userID, reviewID uint64, review models.Review) error
+	DeleteReview(ctx context.Context, userID, reviewID uint64) error
+	GetDoctorReviewsWithRating(ctx context.Context, doctorID uint64, params models.PaginationParams, onlyModerated bool) (
+		models.DoctorReviewsResponse, error)
 }
 
 // Service - это контейнер для всех сервисов приложения.

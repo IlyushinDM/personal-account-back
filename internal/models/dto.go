@@ -38,3 +38,38 @@ type PaginatedReviewsResponse struct {
 	Total int64    `json:"total" example:"150"`
 	Items []Review `json:"items"`
 }
+
+// DoctorReviewsResponse представляет DTO для ответа с отзывами врача и его рейтингом.
+type DoctorReviewsResponse struct {
+	Items        []Review `json:"items"`
+	DoctorRating float64  `json:"doctorRating" example:"4.8"`
+}
+
+// CreateReviewRequest представляет DTO для создания отзыва.
+type CreateReviewRequest struct {
+	DoctorID uint64 `json:"doctor_id" binding:"required" example:"55"`
+	Rating   uint16 `json:"rating" binding:"required,min=1,max=5" example:"5"`
+	Comment  string `json:"comment" example:"Отличный врач!"`
+}
+
+// UpdateReviewRequest представляет DTO для обновления отзыва.
+type UpdateReviewRequest struct {
+	Rating  uint16 `json:"rating" binding:"required,min=1,max=5" example:"4"`
+	Comment string `json:"comment" example:"Обновленный комментарий"`
+}
+
+// CreateReviewResponse представляет DTO для ответа при создании отзыва.
+type CreateReviewResponse struct {
+	ID      uint64 `json:"id" example:"1"`
+	Message string `json:"message" example:"Отзыв создан"`
+}
+
+// UpdateReviewResponse представляет DTO для ответа при обновлении отзыва.
+type UpdateReviewResponse struct {
+	Message string `json:"message" example:"Отзыв обновлен"`
+}
+
+// DeleteReviewResponse представляет DTO для ответа при удалении отзыва.
+type DeleteReviewResponse struct {
+	Message string `json:"message" example:"Отзыв удален"`
+}
