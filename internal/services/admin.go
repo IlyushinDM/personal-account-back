@@ -340,8 +340,12 @@ func (s *adminService) CreateService(ctx context.Context, input CreateServiceInp
 	return id, nil
 }
 
+// TODO: FR-9 (Административные эндпоинты) - Реализовать логику получения сервиса по ID из репозитория
+// и его обновления на основе входных данных `input`.
 func (s *adminService) UpdateService(ctx context.Context, serviceID uint64, input UpdateServiceInput) error {
-	// TODO: Реализовать логику получения сервиса по ID и его обновления
+	// 1. Получить сервис по serviceID из repos.Admin (нужно добавить метод в репозиторий).
+	// 2. Обновить поля структуры на основе `input`.
+	// 3. Сохранить обновленную структуру через repos.Admin.UpdateService.
 	return NewInternalServerError("Not implemented yet", nil)
 }
 
@@ -384,5 +388,9 @@ func (s *adminService) DeleteDepartment(ctx context.Context, departmentID uint32
 	return s.repos.Admin.DeleteDepartment(ctx, departmentID)
 }
 
-// TODO: Реализовать остальные методы AdminService
-// (управление анализами, назначениями, семьей, настройками, бекапами и т.д.)
+// TODO: FR-9 (Административные эндпоинты) - Реализовать все недостающие методы интерфейса AdminService:
+// - Управление анализами (GetAll, Create, Update, Delete)
+// - Управление назначениями (GetAll, Create)
+// - Управление семейными связями (GetAll, Delete)
+// - Модерация отзывов (GetPendingReviews, ModerateReview)
+// - Системные функции (GetAuditLogs, Get/Update ClinicSettings, Legal Docs, Backup/Restore)

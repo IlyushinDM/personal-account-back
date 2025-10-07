@@ -102,6 +102,8 @@ func (h *Handler) InitRoutes(router *gin.Engine) {
 				medicalCard.GET("/analyses", h.getAnalyses)
 				medicalCard.GET("/archive/prescriptions", h.getArchivedPrescriptions)
 				medicalCard.GET("/summary", h.getSummary)
+				// TODO: FR-2.7 и FR-4.7 - Этот эндпоинт дублирует /prescriptions/:id/archive.
+				// Следует унифицировать логику и, возможно, оставить только один эндпоинт для архивации назначений.
 				medicalCard.POST("/archive/prescriptions", h.archivePrescriptionFromCard)
 			}
 
@@ -181,6 +183,13 @@ func (h *Handler) InitRoutes(router *gin.Engine) {
 					prescriptions.GET("/", h.adminGetAllPrescriptions)
 					prescriptions.POST("/", h.adminCreatePrescription)
 				}
+
+				// TODO: FR-9 (Административные эндпоинты) - Добавить эндпоинты для модерации отзывов.
+				// reviews := adminAuthorized.Group("/reviews")
+				// {
+				//	reviews.GET("/pending", h.adminGetPendingReviews)
+				//	reviews.POST("/:id/moderate", h.adminModerateReview)
+				// }
 
 				// 7. Управление семьей
 				family := adminAuthorized.Group("/family-relations")

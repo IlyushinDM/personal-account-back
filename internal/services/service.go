@@ -128,7 +128,11 @@ type AdminService interface {
 	UpdateDepartment(ctx context.Context, departmentID uint32, input UpdateDepartmentInput) error
 	DeleteDepartment(ctx context.Context, departmentID uint32) error
 
-	// TODO: Реализовать другие методы бизнес-логики (Analyses, Prescriptions, Family, Settings, и т.д.)
+	// TODO: FR-9 (Административные эндпоинты) - Добавить методы для модерации отзывов.
+	// GetPendingReviews(ctx context.Context, params models.PaginationParams) ([]models.Review, int64, error)
+	// ModerateReview(ctx context.Context, reviewID uint64, action string, moderatorComment string) error
+
+	// TODO: Расширить интерфейс методами для управления анализами, назначениями, семьей, настройками, бэкапами и т.д.
 }
 
 // --- DTO для AdminService ---

@@ -109,11 +109,17 @@ func main() {
 	}
 	logger.Default().Info("соединение с MinIO установлено")
 
+	// TODO: FR-1.5, FR-5.5 - Инициализировать клиент для SMS-шлюза.
+	// smsClient := sms.NewClient(cfg.SMS.APIKey, cfg.SMS.SenderName)
+	// logger.Default().Info("клиент для SMS-шлюза инициализирован")
+
 	// 3. Dependency Injection: собираем все зависимости
 	repos := repository.NewRepository(gormDB, redisClient)
 	serviceDeps := services.ServiceDependencies{
-		Repos:      repos,
-		Storage:    storageClient,
+		Repos:   repos,
+		Storage: storageClient,
+		// TODO: Добавить smsClient в зависимости сервисов, когда он будет реализован.
+		// SMSClient:  smsClient,
 		Location:   location,
 		SigningKey: cfg.Auth.JWTSecretKey,
 		TokenTTL:   cfg.Auth.TokenTTL,
