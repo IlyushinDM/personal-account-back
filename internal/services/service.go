@@ -88,18 +88,6 @@ type MedicalCardService interface {
 	DownloadFile(ctx context.Context, userID, fileID uint64) ([]byte, string, error)
 }
 
-// ReviewService определяет методы для работы с отзывами.
-type ReviewService interface {
-	GetReviewsByDoctorID(ctx context.Context, doctorID uint64, params models.PaginationParams) (
-		models.PaginatedReviewsResponse, error)
-	GetReviewByID(ctx context.Context, reviewID uint64) (models.Review, error)
-	CreateReview(ctx context.Context, userID uint64, review models.Review) (uint64, error)
-	UpdateReview(ctx context.Context, userID, reviewID uint64, review models.Review) error
-	DeleteReview(ctx context.Context, userID, reviewID uint64) error
-	GetDoctorReviewsWithRating(ctx context.Context, doctorID uint64, params models.PaginationParams, onlyModerated bool) (
-		models.DoctorReviewsResponse, error)
-}
-
 // Service - это контейнер для всех сервисов приложения.
 type Service struct {
 	Authorization Authorization
@@ -110,7 +98,6 @@ type Service struct {
 	Info          InfoService
 	Prescription  PrescriptionService
 	MedicalCard   MedicalCardService
-	Review        ReviewService
 }
 
 // ServiceDependencies содержит все зависимости, необходимые для создания сервисов.
@@ -142,6 +129,5 @@ func NewService(deps ServiceDependencies) *Service {
 		Info:          NewInfoService(deps.Repos.Service, deps.Repos.Info),
 		Prescription:  NewPrescriptionService(deps.Repos.Prescription),
 		MedicalCard:   NewMedicalCardService(deps.Repos.MedicalCard, deps.Repos.Prescription, deps.Storage),
-		Review:        NewReviewService(deps.Repos.Review),
 	}
 }
